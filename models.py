@@ -10,9 +10,6 @@ class DataFile:
         fn = getattr(cls, f, lambda: "Invalid file type")
         return fn(file)
 
-    def read_csv(file):
-        return pd.read_csv(file)
-
     def read_xlsx(file):
         return pd.read_excel(file)
 

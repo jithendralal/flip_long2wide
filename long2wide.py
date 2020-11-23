@@ -54,15 +54,16 @@ class Application(tk.Frame):
         df['quantity_units'] = pd.to_numeric(df['quantity_units'], errors='coerce')
         df_area = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='area_of_pi')  # , aggfunc=np.mean)
         df_quantity = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='quantity_units')  # , aggfunc=np.mean)
-        return df_area, df_quantity
+        df_rt = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='rt_min')  # , aggfunc=np.mean)
+        return df_area, df_quantity, df_rt
 
     def process_waters(self, df):
         headers = df.loc[5].values.flatten().tolist()  # get the 5th row as headers
+        
         headers[0] = 'analyte_name'
         headers[1] = 'hash'
         df.columns = headers
         df = janitor.clean_names(df, remove_special=True, case_type='snake')
-
         headers = df.columns.to_list()
         headers = [x.strip('_') for x in headers]  # remove leading and trailing '_' in variables
         df.columns = headers
@@ -70,41 +71,45 @@ class Application(tk.Frame):
         df.dropna(subset=['analyte_name'], inplace=True)  # drop empty rows 
         df.reset_index(drop=True, inplace=True)  # reindex after dropping rows
 
+        # print(f"\n\n{df.head(20)}\n\n")
+
         df = self.fill_analyte_name(df)  # Compound: tryptophan occurs only once, fill it in rows below it
         df = df[WATERS_VARIABLES]
         df['conc'] = pd.to_numeric(df['conc'], errors='coerce')
-        
         df["area"] = pd.to_numeric(df["area"], errors='coerce')
+        df["rt"] = pd.to_numeric(df["rt"], errors='coerce')
         df_area = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='area')  # , fill_value=0)  # , aggfunc=np.mean)
         df_quantity = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='conc')  # , fill_value=0)  # , aggfunc=np.mean)
-        return df_area, df_quantity
+        df_rt = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='rt')  # , fill_value=0)  # , aggfunc=np.mean)
+        return df_area, df_quantity, df_rt
 
     def process_files(self):
         current_dir = self.get_current_dir()
-        file_type = self.file_type.get()
-        files = get_files(current_dir, file_type)
         machine_type = self.machine_type.get()
-        file_type = file_type[1:]
+        file_type = 'xlsx' if machine_type == 'bruker' else 'txt'
+        files = get_files(current_dir, "."+file_type)
         ret_df_area = pd.DataFrame()
         ret_df_quantity = pd.DataFrame()
+        ret_df_rt = pd.DataFrame()
         if len(files):
             data_file = DataFile()
             for file in files:
                 df = data_file.read(file, file_type)
-                print(f"\n\n{df.head(20)}\n\n")
+
                 if machine_type == 'bruker':
-                    df_area, df_quantity = self.process_bruker(df)
+                    df_area, df_quantity, df_rt = self.process_bruker(df)
                 else:
-                    df_area, df_quantity = self.process_waters(df)
+                    df_area, df_quantity, df_rt = self.process_waters(df)
 
                 ret_df_area = ret_df_area.append(df_area)
                 ret_df_quantity = ret_df_quantity.append(df_quantity)
-        return ret_df_area, ret_df_quantity
+                ret_df_rt = ret_df_rt.append(df_rt)
+        return ret_df_area, ret_df_quantity, ret_df_rt
 
     def long_to_wide(self):
         self.selected_cwd = True
 
-        area_df, quantity_df = self.process_files()
+        area_df, quantity_df, rt_df = self.process_files()
 
         current_dir = self.get_current_dir()
         today = datetime.today()
@@ -115,6 +120,7 @@ class Application(tk.Frame):
         machine_type = self.machine_type.get()
         sheet_name1 = 'Area'
         sheet_name2 = 'Conc'
+        sheet_name3 = 'RT'
         if machine_type == 'bruker':
             sheet_name1 = 'Area of PI'
             sheet_name2 = 'Quantity Units'
@@ -122,6 +128,7 @@ class Application(tk.Frame):
         with ExcelWriter(output_path) as writer:
             area_df.to_excel(writer, sheet_name1)
             quantity_df.to_excel(writer, sheet_name2)
+            rt_df.to_excel(writer, sheet_name3)
             writer.save()
 
         self.process_message.configure(text=f"\nSaved as: {output_path}", fg="#006600", bg="#b3cccc")
@@ -143,7 +150,7 @@ class Application(tk.Frame):
                 self.dir_lf.configure(text=new, fg="#000")
         elif old:
             self.dir_lf.configure(text=old, fg="#000")
-            self.process_message.configure(text="\nSelected last Folder")
+            self.process_message.configure(text=f"\nSelected last folder: {old}")
         self.process_button.configure(state=tk.NORMAL)
 
     def change_color(self):
@@ -166,9 +173,9 @@ class Application(tk.Frame):
 
         help_text = f"Please copy your files to a local folder on this PC and select that folder.\n\n"
 
-        help_text += f"Columns in long format xlsx export files:\n\n"
-        help_text += f"Bruker: {BRUKER_VARIABLES}\n\n"
-        help_text += f"Waters: {WATERS_HELP_VARIABLES}\nFor Waters, analyte names appear as separate rows like Compound: tryptophan etc."
+        help_text += f"Columns in long format export files:\n\n"
+        help_text += f"Bruker (xlsx): {BRUKER_VARIABLES}\n\n"
+        help_text += f"Waters (txt) : {WATERS_HELP_VARIABLES}\nFor Waters, analyte names appear as separate rows like Compound: tryptophan etc."
         help_message.configure(text=help_text)
 
         self.process_button = tk.Button(process_lf, text="Flip (Long to Wide)", command=self.long_to_wide, state=tk.DISABLED, font=("Arial", 12))
@@ -179,21 +186,12 @@ class Application(tk.Frame):
 
     def add_controls(self):
         cwd = self.config["cwd"]
-        self.dir_lf = tk.LabelFrame(self.cwd_lf, text='Select your data directory', padx=2, pady=2, relief=tk.RIDGE, bg="#b3cccc", fg="red")
+        self.dir_lf = tk.LabelFrame(self.cwd_lf, text='Select your data folder', padx=2, pady=2, relief=tk.RIDGE, bg="#b3cccc", fg="red")
         self.dir_lf.pack(side=tk.LEFT, padx=8, pady=2)
-        cwd_button = tk.Button(self.dir_lf, text="Select your Folder", command=self.select_cwd)
+        cwd_button = tk.Button(self.dir_lf, text="Select folder", command=self.select_cwd)
         cwd_button.pack(side=tk.LEFT, padx=2, pady=2)
         self.cwd_label = tk.Label(self.dir_lf, text=self.cwd_label_text, fg="#000", bg="#b3cccc")
         self.cwd_label.pack(side=tk.LEFT, padx=2, pady=2)
-
-        type_lf = tk.LabelFrame(self.cwd_lf, text="File Type", padx=2, pady=2, relief=tk.RIDGE, bg="#b3cccc")
-        type_lf.pack(side=tk.LEFT, padx=8, pady=2)
-        types = [
-            (".xlsx", ".xlsx"),
-            (".txt (tab separated)", ".txt")
-        ]
-        for text, ftype in types:
-            tk.Radiobutton(type_lf, text=text, variable=self.file_type, value=ftype).pack(side=tk.LEFT, padx=2, pady=5)
 
         machine_lf = tk.LabelFrame(self.cwd_lf, text="Machine", padx=2, pady=2, relief=tk.RIDGE, bg="#b3cccc")
         machine_lf.pack(side=tk.LEFT, padx=8, pady=2)
@@ -202,7 +200,7 @@ class Application(tk.Frame):
             ("Waters", "waters"),
         ]                
         for name, code in machines:
-            tk.Radiobutton(machine_lf, text=name, variable=self.machine_type, value=code).pack(side=tk.LEFT, padx=2, pady=5)
+            tk.Radiobutton(machine_lf, text=name, variable=self.machine_type, value=code, indicatoron=0, width=20).pack(anchor=tk.W, padx=2, pady=2)
 
         self.add_process_controls()
 
@@ -233,6 +231,6 @@ class Application(tk.Frame):
 
 root = tk.Tk()
 app = Application(root)
-root.geometry("800x400")
+root.geometry("800x450")
 root.configure(background='#b3cccc')
 root.mainloop()
