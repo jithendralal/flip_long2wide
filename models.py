@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 
 
@@ -29,4 +30,5 @@ class DataFile:
                         row.append("")
                 temp.write(",".join(row) + "\n")
         df = pd.read_csv(file + ".csv")
+        os.remove(file + ".csv")
         return df
