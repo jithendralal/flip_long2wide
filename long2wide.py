@@ -8,105 +8,13 @@ import pandas as pd
 import re
 import sys
 import janitor
-
 import tkinter as tk
 from datetime import datetime
 from IPython.display import clear_output
-from pathlib import Path
 from pandas import ExcelWriter
-from tkinter import filedialog
 from tkinter import scrolledtext
-
-
-CONFIG_FILENAME = "config.json"
-CONFIG_PATH = os.getcwd()
-CONFIG_FILE = os.path.join(CONFIG_PATH, CONFIG_FILENAME)
-
-BRUKER_VARIABLES = [
-    'quantity_units', 
-    'analyte_name', 
-    'data_set', 
-    'sample_type',
-    'rt_min',
-    'm_z_expected',
-    'area_of_pi'
-]
-
-WATERS_VARIABLES = [
-    'conc', 
-    'analyte_name', 
-    'sample_text', 
-    'type',
-    'rt',
-    'area'
-]
-
-WATERS_HELP_VARIABLES = [
-    'conc', 
-    'sample_text', 
-    'type',
-    'rt',
-    'area'
-]
-
-def get_files(dir_name, file_type):
-    list_of_files = sorted(os.listdir(dir_name))
-    all_files = list()
-    for file in list_of_files:
-        full_path = os.path.join(dir_name, file)
-        if os.path.isdir(full_path):
-            all_files = all_files + get_files(full_path, file_type)
-        else:
-            if file.endswith(file_type):
-                all_files.append(full_path)
-    return all_files
-
-
-def open_dir(current_dir):
-    return filedialog.askdirectory(initialdir=current_dir, title="Please select a directory")
-
-
-def get_home():
-    return str(Path.home())
-
-
-def get_config():
-    config_json = None
-    if os.path.isfile(CONFIG_FILE):
-        with open(CONFIG_FILE) as f:
-            config_json = json.load(f)
-    else:
-        with open(CONFIG_FILE, "w+") as f:
-            config_json = {"cwd": get_home()}
-            json.dump(config_json, f, indent=4)
-    return config_json
-
-
-def set_config(key, value):
-    with open(CONFIG_FILE) as f:
-        config = json.load(f)
-    with open(CONFIG_FILE, "w") as f:
-        config[key] = value
-        json.dump(config, f, indent=4)
-
-
-class DataFile:
-    @classmethod
-    def read(cls, file, file_type):
-        f = "read_" + file_type
-        # for invalid file type, fn is the lambda function that returns error message
-        fn = getattr(cls, f, lambda: "Invalid file type")
-        return fn(file)
-
-    def read_csv(file):
-        return pd.read_csv(file)
-
-    def read_xlsx(file):
-        return pd.read_excel(file)
-
-    def read_txt(file):
-        # return pd.read_fwf(file, delimiter="\t")
-        return pd.read_csv(file, sep='\t', lineterminator='\r')
+from utils import *
+from models import DataFile
 
 
 class Application(tk.Frame):
@@ -130,9 +38,6 @@ class Application(tk.Frame):
 
     def fill_analyte_name(self, df):
         analytes = df[df['analyte_name'].apply(lambda x: str(x).startswith('Compound'))].index.tolist()
-
-        print(analytes)
-
         analytes_index = 0
         fill_value = df['analyte_name'][analytes[analytes_index]].split(':')[1].strip()
         for i in range(2, len(df.index)):
@@ -143,7 +48,38 @@ class Application(tk.Frame):
                 fill_value = df['analyte_name'][analytes[analytes_index]].split(':')[1].strip()
         return df
 
-    def process_data(self):
+    def process_bruker(self, df):
+        df = janitor.clean_names(df, remove_special=True, case_type='snake')
+        df = df[BRUKER_VARIABLES]
+        df['quantity_units'] = pd.to_numeric(df['quantity_units'], errors='coerce')
+        df_area = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='area_of_pi')  # , aggfunc=np.mean)
+        df_quantity = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='quantity_units')  # , aggfunc=np.mean)
+        return df_area, df_quantity
+
+    def process_waters(self, df):
+        headers = df.loc[5].values.flatten().tolist()  # get the 5th row as headers
+        headers[0] = 'analyte_name'
+        headers[1] = 'hash'
+        df.columns = headers
+        df = janitor.clean_names(df, remove_special=True, case_type='snake')
+
+        headers = df.columns.to_list()
+        headers = [x.strip('_') for x in headers]  # remove leading and trailing '_' in variables
+        df.columns = headers
+
+        df.dropna(subset=['analyte_name'], inplace=True)  # drop empty rows 
+        df.reset_index(drop=True, inplace=True)  # reindex after dropping rows
+
+        df = self.fill_analyte_name(df)  # Compound: tryptophan occurs only once, fill it in rows below it
+        df = df[WATERS_VARIABLES]
+        df['conc'] = pd.to_numeric(df['conc'], errors='coerce')
+        
+        df["area"] = pd.to_numeric(df["area"], errors='coerce')
+        df_area = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='area')  # , fill_value=0)  # , aggfunc=np.mean)
+        df_quantity = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='conc')  # , fill_value=0)  # , aggfunc=np.mean)
+        return df_area, df_quantity
+
+    def process_files(self):
         current_dir = self.get_current_dir()
         file_type = self.file_type.get()
         files = get_files(current_dir, file_type)
@@ -155,33 +91,11 @@ class Application(tk.Frame):
             data_file = DataFile()
             for file in files:
                 df = data_file.read(file, file_type)
+                print(f"\n\n{df.head(20)}\n\n")
                 if machine_type == 'bruker':
-                    df = janitor.clean_names(df, remove_special=True, case_type='snake')
-                    df = df[BRUKER_VARIABLES]
-                    df['quantity_units'] = pd.to_numeric(df['quantity_units'], errors='coerce')
-                    df_area = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='area_of_pi')  # , aggfunc=np.mean)
-                    df_quantity = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='quantity_units')  # , aggfunc=np.mean)
+                    df_area, df_quantity = self.process_bruker(df)
                 else:
-                    headers = df.loc[5].values.flatten().tolist()  # get the 5th row as headers
-                    headers[0] = 'analyte_name'
-                    headers[1] = 'hash'
-                    df.columns = headers
-                    df = janitor.clean_names(df, remove_special=True, case_type='snake')
-
-                    headers = df.columns.to_list()
-                    headers = [x.strip('_') for x in headers]  # remove leading and trailing '_' in variables
-                    df.columns = headers
-
-                    df.dropna(subset=['analyte_name'], inplace=True)  # drop empty rows 
-                    df.reset_index(drop=True, inplace=True)  # reindex after dropping rows
-
-                    df = self.fill_analyte_name(df)  # Compound: tryptophan occurs only once, fill it in rows below it
-                    df = df[WATERS_VARIABLES]
-                    df['conc'] = pd.to_numeric(df['conc'], errors='coerce')
-                    
-                    df["area"] = pd.to_numeric(df["area"], errors='coerce')
-                    df_area = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='area')  # , fill_value=0)  # , aggfunc=np.mean)
-                    df_quantity = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='conc')  # , fill_value=0)  # , aggfunc=np.mean)
+                    df_area, df_quantity = self.process_waters(df)
 
                 ret_df_area = ret_df_area.append(df_area)
                 ret_df_quantity = ret_df_quantity.append(df_quantity)
@@ -190,7 +104,7 @@ class Application(tk.Frame):
     def long_to_wide(self):
         self.selected_cwd = True
 
-        area_df, quantity_df = self.process_data()
+        area_df, quantity_df = self.process_files()
 
         current_dir = self.get_current_dir()
         today = datetime.today()
@@ -276,8 +190,7 @@ class Application(tk.Frame):
         type_lf.pack(side=tk.LEFT, padx=8, pady=2)
         types = [
             (".xlsx", ".xlsx"),
-            (".csv", ".csv"),
-            (".txt", ".txt")
+            (".txt (tab separated)", ".txt")
         ]
         for text, ftype in types:
             tk.Radiobutton(type_lf, text=text, variable=self.file_type, value=ftype).pack(side=tk.LEFT, padx=2, pady=5)
