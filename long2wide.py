@@ -24,9 +24,8 @@ class Application(tk.Frame):
         self.pack(fill='both', padx=2, pady=2)
         self.master.title('ANPC - Flippy')
         self.file_type = tk.StringVar(value=".xlsx")
-        self.machine_type = tk.StringVar(value="waters")
+        self.machine_type = tk.StringVar(value="bruker")
         self.load_config()
-        self.cwd_label_text = ""
         self.create_widgets()
         self.df = pd.DataFrame()
 
@@ -35,6 +34,10 @@ class Application(tk.Frame):
 
     def get_current_dir(self):
         return self.config["cwd"]
+
+    def set_selections_text(self):
+        message = f"Folder: {self.get_current_dir()}\nMachine: {self.machine_type.get().title()}\nFile type: .{self.get_file_type().upper()}\n"
+        self.selections_text.configure(text=message)
 
     def fill_analyte_name(self, df):
         analytes = df[df['analyte_name'].apply(lambda x: str(x).startswith('Compound'))].index.tolist()
@@ -83,10 +86,16 @@ class Application(tk.Frame):
         df_rt = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='rt')  # , fill_value=0)  # , aggfunc=np.mean)
         return df_area, df_quantity, df_rt
 
+    def get_file_type(self):
+        ret = 'txt'
+        if self.machine_type.get() == 'bruker':
+            ret = 'xlsx'
+        return ret
+
     def process_files(self):
         current_dir = self.get_current_dir()
         machine_type = self.machine_type.get()
-        file_type = 'xlsx' if machine_type == 'bruker' else 'txt'
+        file_type = self.get_file_type()
         files = get_files(current_dir, "."+file_type)
         ret_df_area = pd.DataFrame()
         ret_df_quantity = pd.DataFrame()
@@ -131,7 +140,7 @@ class Application(tk.Frame):
             rt_df.to_excel(writer, sheet_name3)
             writer.save()
 
-        self.process_message.configure(text=f"\nSaved as: {output_path}", fg="#006600", bg="#b3cccc")
+        self.process_message.configure(text=f"Saved as: {output_path}", fg="#006600", bg="#b3cccc")
 
     def select_cwd(self):
         old = self.config["cwd"]
@@ -140,18 +149,16 @@ class Application(tk.Frame):
         if new:
             set_config("cwd", new)
             self.config["cwd"] = new
-            self.cwd_label_text = new
-            self.process_message.configure(text="\nFolder Selected")
+            self.process_message.configure(text="New folder selected")
             if old != new:
-                self.cwd_label.configure(text="Changed Folder.", fg="green")
-                self.dir_lf.configure(text=new, fg="#000")
+                self.dir_lf.configure(text="", fg="#000")
             else:
-                self.cwd_label.configure(text="", fg="blue")
-                self.dir_lf.configure(text=new, fg="#000")
+                self.dir_lf.configure(text="", fg="#000")
         elif old:
-            self.dir_lf.configure(text=old, fg="#000")
-            self.process_message.configure(text=f"\nSelected last folder: {old}")
+            self.dir_lf.configure(text="", fg="#000")
+            self.process_message.configure(text=f"Selected last folder: {old}")
         self.process_button.configure(state=tk.NORMAL)
+        self.set_selections_text()
 
     def change_color(self):
         current_fg = self.dir_lf.cget("foreground")
@@ -161,62 +168,72 @@ class Application(tk.Frame):
             self.dir_lf.configure(fg=next_fg)
             root.after(600, self.change_color)
 
+    def add_feedback_controls(self):
+        feedback_lf = tk.LabelFrame(self.master, text="Your selections:", fg='#666', padx=2, pady=2, relief=tk.FLAT, bg="#b3cccc")
+        feedback_lf.pack(side=tk.TOP, padx=2, pady=2)
+
+        self.selections_text = tk.Label(feedback_lf, bg="#b3cccc", fg="midnightblue", font=("Arial", 11), justify=tk.LEFT)
+        self.selections_text.pack(side=tk.TOP, padx=2, pady=2)
+
     def add_process_controls(self):
         process_lf = tk.LabelFrame(self.master, text="", padx=2, pady=2, relief=tk.FLAT, bg="#b3cccc")
-        process_lf.pack(side=tk.BOTTOM, padx=2, pady=2)
+        process_lf.pack(side=tk.BOTTOM, padx=0, pady=0, fill=tk.X)
 
-        help_lf = tk.LabelFrame(process_lf, text="Background", padx=2, pady=2, relief=tk.SUNKEN, bg="#b3cccc")
-        help_lf.pack(side=tk.TOP, padx=2, pady=(2, 30))
+        self.process_button = tk.Button(process_lf, text="Flip", activebackground='palegreen', width=20,
+                                        command=self.long_to_wide, state=tk.DISABLED, font=("Arial", 12))
+        self.process_button.pack(side=tk.TOP, padx=2, pady=(0, 20))
 
-        help_message = tk.Label(help_lf, bg="#b3cccc", fg="midnightblue", font=("Arial", 10), justify=tk.LEFT)
-        help_message.pack(side=tk.TOP, padx=2, pady=2)
+        self.process_message = tk.Label(process_lf, fg="green", bg="#ddd", font=("Arial", 10))
+        self.process_message.pack(side=tk.BOTTOM, padx=0, pady=0, fill=tk.X)
+
+    def add_help(self):
+        help_lf = tk.LabelFrame(self.cwd_lf, text="", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
+        help_lf.pack(side=tk.TOP, padx=1, pady=(1,10))
 
         help_text = f"Please copy your files to a local folder on this PC and select that folder.\n\n"
-
         help_text += f"Columns in long format export files:\n\n"
         help_text += f"Bruker (xlsx): {BRUKER_VARIABLES}\n\n"
-        help_text += f"Waters (txt) : {WATERS_HELP_VARIABLES}\nFor Waters, analyte names appear as separate rows like Compound: tryptophan etc."
-        help_message.configure(text=help_text)
+        help_text += f"Waters (txt) : {WATERS_HELP_VARIABLES} (analyte names appear on separate lines, eg. Compound: tryptophan){' '*8}"
 
-        self.process_button = tk.Button(process_lf, text="Flip (Long to Wide)", command=self.long_to_wide, state=tk.DISABLED, font=("Arial", 12))
-        self.process_button.pack(side=tk.TOP, padx=2, pady=2)
-
-        self.process_message = tk.Label(process_lf, text=None, fg="green", bg="#b3cccc", font=("Arial", 10))
-        self.process_message.pack(side=tk.BOTTOM, padx=2, pady=2, fill='both')
+        help_message = tk.Label(help_lf, bg="#ccc", fg="midnightblue", font=("Arial", 10), justify=tk.LEFT, text=help_text)
+        help_message.pack(side=tk.TOP, padx=10, pady=0)
 
     def add_controls(self):
         cwd = self.config["cwd"]
-        self.dir_lf = tk.LabelFrame(self.cwd_lf, text='Select your data folder', padx=2, pady=2, relief=tk.RIDGE, bg="#b3cccc", fg="red")
+        self.dir_lf = tk.LabelFrame(self.cwd_lf, text='Select your data folder', padx=2, pady=2, relief=tk.FLAT, bg="#ccc", fg="red")
         self.dir_lf.pack(side=tk.LEFT, padx=8, pady=2)
-        cwd_button = tk.Button(self.dir_lf, text="Select folder", command=self.select_cwd)
+        cwd_button = tk.Button(self.dir_lf, text="Select folder", command=self.select_cwd, activebackground='palegreen')
         cwd_button.pack(side=tk.LEFT, padx=2, pady=2)
-        self.cwd_label = tk.Label(self.dir_lf, text=self.cwd_label_text, fg="#000", bg="#b3cccc")
-        self.cwd_label.pack(side=tk.LEFT, padx=2, pady=2)
 
-        machine_lf = tk.LabelFrame(self.cwd_lf, text="Machine", padx=2, pady=2, relief=tk.RIDGE, bg="#b3cccc")
+        machine_lf = tk.LabelFrame(self.cwd_lf, text="Machine", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
         machine_lf.pack(side=tk.LEFT, padx=8, pady=2)
         machines = [
             ("Bruker", "bruker"),
             ("Waters", "waters"),
         ]                
         for name, code in machines:
-            tk.Radiobutton(machine_lf, text=name, variable=self.machine_type, value=code, indicatoron=0, width=20).pack(anchor=tk.W, padx=2, pady=2)
+            tk.Radiobutton(machine_lf, text=name, variable=self.machine_type, bd=0, command=self.set_selections_text,
+                           activebackground='palegreen',
+                           value=code, indicatoron=True, width=12, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
 
         self.add_process_controls()
+        self.add_feedback_controls()
 
     def exit(self):
         clear_output()
         self.master.destroy()
 
     def add_options_bar(self):
-        tk.Label(self, text="Flippy", bg="#b3cccc", font=("Arial", 16)).pack(side=tk.TOP, fill=tk.X)
+        tk.Label(self, text="FlipPy", bg="#b3cccc", font=("Arial", 16)).pack(side=tk.TOP, fill=tk.X)
+        tk.Label(self, text="(Cast Long to Wide)", bg="#b3cccc", font=("Arial", 11)).pack(side=tk.TOP, fill=tk.X)
 
-        self.optionsbar = tk.Frame(self, bd=1, relief=tk.RIDGE, bg="#b3cccc")
+        self.optionsbar = tk.Frame(self, bd=1, relief=tk.FLAT, bg="#ddd")
         self.optionsbar.pack(side=tk.TOP, fill=tk.X)
 
-        self.cwd_lf = tk.Frame(self.optionsbar, bg="#b3cccc", padx=4, pady=2, relief=tk.FLAT)
-        self.cwd_lf.pack(side=tk.LEFT, padx=2, pady=2)
-
+        self.cwd_lf = tk.Frame(self.optionsbar, bg="#ddd", padx=4, pady=2, relief=tk.FLAT)
+        self.cwd_lf.pack(side=tk.LEFT, fill=tk.X)
+        
+        self.add_help()
         self.add_controls()
 
     def create_widgets(self):
@@ -224,13 +241,13 @@ class Application(tk.Frame):
         self.master.config(menu=self.menubar)
         self.menubar.add_command(label="Exit", command=self.exit, activebackground="#b3cccc", foreground="red")
         self.add_options_bar()
-        self.process_message.configure(text=f"\nLast used directory: {self.config['cwd']}", fg="#666")
+        self.process_message.configure(text=f"Last used directory: {self.config['cwd']}", fg="#666")
 
         self.change_color()
 
 
 root = tk.Tk()
 app = Application(root)
-root.geometry("800x450")
+root.geometry("800x500")
 root.configure(background='#b3cccc')
 root.mainloop()
