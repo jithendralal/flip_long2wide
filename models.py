@@ -13,7 +13,7 @@ class DataFile:
     def read_xlsx(file):
         return pd.read_excel(file)
 
-    def read_txt(file):
+    def read_TXT(file):
         with open(file) as tsv, open(file + ".csv", "w+") as temp:
             first_row = True
             for aline in tsv:
