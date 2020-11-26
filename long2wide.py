@@ -23,7 +23,7 @@ class Application(tk.Frame):
         self.selected_cwd = False
         self.pack(fill='both', padx=2, pady=2)
         self.master.title('ANPC - Flippy')
-        self.file_type = tk.StringVar(value=".xlsx")
+        #self.file_type = tk.StringVar(value=".xlsx")
         self.machine_type = tk.StringVar(value="bruker")
         self.load_config()
         self.create_widgets()
@@ -36,7 +36,7 @@ class Application(tk.Frame):
         return self.config["cwd"]
 
     def set_selections_text(self):
-        message = f"Folder: {self.get_current_dir()}\nMachine: {self.machine_type.get().title()}\nFile type: .{self.get_file_type().upper()}\n"
+        message = f"Folder: {self.get_current_dir()}\nMachine: {self.machine_type.get().title()}\nFile type: .{self.get_file_type()}\n"
         self.selections_text.configure(text=message)
 
     def fill_analyte_name(self, df):
@@ -87,7 +87,7 @@ class Application(tk.Frame):
         return df_area, df_quantity, df_rt
 
     def get_file_type(self):
-        ret = 'txt'
+        ret = 'TXT'
         if self.machine_type.get() == 'bruker':
             ret = 'xlsx'
         return ret
