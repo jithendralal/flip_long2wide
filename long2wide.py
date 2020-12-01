@@ -185,6 +185,8 @@ class Application(tk.Frame):
         elif old:
             self.dir_lf.configure(text="", fg="#000")
             self.process_message.configure(text=f"Selected same folder: {old}")
+        for w in self.machine_lf.winfo_children():
+            w.configure(state=tk.NORMAL)
         self.process_button.configure(state=tk.NORMAL)
         self.set_selections_text()
 
@@ -218,25 +220,25 @@ class Application(tk.Frame):
         help_lf = tk.LabelFrame(self.cwd_lf, text="", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
         help_lf.pack(side=tk.TOP, padx=1, pady=(1,10))
 
-        help_text = f"Please copy your files to a folder on this PC and select that folder (Each file will be processed separately)\n\n"
+        help_text = f"Please copy your files to an empty folder and select that folder (Each file will be processed separately)\n\n"
         help_text += f"Files should have the columns:\n"
         help_text += f"Bruker (xlsx): {BRUKER_VARIABLES}\n"
-        help_text += f"Waters (TXT) : {WATERS_HELP_VARIABLES} (analyte names appear on separate lines, eg. Compound: tryptophan){' '*8}"
+        help_text += f"Waters (TXT) : {WATERS_HELP_VARIABLES} (analyte names appear on separate lines, eg. Compound: tryptophan){' '*32}"
 
         help_message = tk.Label(help_lf, bg="#ccc", fg="midnightblue", font=("Arial", 10), justify=tk.LEFT, text=help_text)
         help_message.pack(side=tk.TOP, padx=10, pady=0)
 
     def _add_machine_selector(self):
-        machine_lf = tk.LabelFrame(self.cwd_lf, text="Machine", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
-        machine_lf.pack(side=tk.LEFT, padx=8, pady=2)
+        self.machine_lf = tk.LabelFrame(self.cwd_lf, text="Machine", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
+        self.machine_lf.pack(side=tk.LEFT, padx=8, pady=2)
         machines = [
             ("Bruker", "Bruker"),
             ("Waters", "Waters"),
             ("Sciex", "Sciex"),
         ]                
         for name, code in machines:
-            tk.Radiobutton(machine_lf, text=name, variable=self.machine_type, bd=0, command=self.set_selections_text,
-                           activebackground='palegreen',
+            tk.Radiobutton(self.machine_lf, text=name, variable=self.machine_type, bd=0, command=self.set_selections_text,
+                           activebackground='palegreen', state=tk.DISABLED,
                            value=code, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
 
     def _add_sciex_analysis_type(self):
@@ -265,15 +267,29 @@ class Application(tk.Frame):
                            activebackground='palegreen', state=tk.DISABLED,
                            value=code, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
 
+    def _add_double_conc_selector(self):
+        self.double_conc_lf = tk.LabelFrame(self.cwd_lf, text=" ", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
+        self.double_conc_lf.pack(side=tk.LEFT, padx=8, pady=2)
+        self.double_conc = tk.IntVar(value=1)
+        tk.Checkbutton(self.double_conc_lf, text="Double Conc.", state=tk.DISABLED, variable=self.double_conc, bg="#ddd", activebackground="palegreen").pack(side=tk.LEFT, padx=2, pady=2)
+
+    def _add_unit_conc_selector(self):
+        self.unit_conc_lf = tk.LabelFrame(self.cwd_lf, text=" ", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
+        self.unit_conc_lf.pack(side=tk.LEFT, padx=8, pady=2)
+        self.unit_conc = tk.IntVar(value=1)
+        tk.Checkbutton(self.unit_conc_lf, text="Conc. Unit (ng/mL to uM)", state=tk.DISABLED, variable=self.unit_conc, bg="#ddd", activebackground="palegreen").pack(side=tk.LEFT, padx=2, pady=2)
+
     def add_controls(self):
         cwd = self.config["cwd"]
-        self.dir_lf = tk.LabelFrame(self.cwd_lf, text='Select your data folder', padx=2, pady=2, relief=tk.FLAT, bg="#ccc", fg="red")
+        self.dir_lf = tk.LabelFrame(self.cwd_lf, text='Important !', padx=2, pady=2, relief=tk.FLAT, bg="#ccc", fg="red")
         self.dir_lf.pack(side=tk.LEFT, padx=8, pady=2)
         cwd_button = tk.Button(self.dir_lf, text="Select folder", command=self.select_cwd, activebackground='palegreen')
         cwd_button.pack(side=tk.LEFT, padx=2, pady=2)
         self._add_machine_selector()
         self._add_waters_analysis_type()
         self._add_sciex_analysis_type()
+        self._add_double_conc_selector()
+        self._add_unit_conc_selector()
         self.add_process_controls()
         self.add_feedback_controls()
 
@@ -309,6 +325,6 @@ class Application(tk.Frame):
 
 root = tk.Tk()
 app = Application(root)
-root.geometry("800x500")
+root.geometry("900x500")
 root.configure(background='#b3cccc')
 root.mainloop()
