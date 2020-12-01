@@ -24,6 +24,7 @@ class Application(tk.Frame):
         self.master.title('ANPC - Flippy')
         self.machine_type = tk.StringVar(value="Bruker")
         self.waters_analysis_type = tk.StringVar(value="Amino Acids")
+        self.sciex_analysis_type = tk.StringVar(value="Targeted Lipids")
         self.load_config()
         self.create_widgets()
         self.df = pd.DataFrame()
@@ -34,14 +35,37 @@ class Application(tk.Frame):
     def get_current_dir(self):
         return self.config["cwd"]
 
-    def set_selections_text(self):
-        machine = self.machine_type.get()
-        if machine == 'Waters':
+    def toggle_waters_analysis(self, enable):
+        if enable:
+            self.waters_analysis_lf.configure(text="Waters")
             for w in self.waters_analysis_lf.winfo_children():
                 w.configure(state=tk.NORMAL)
         else:
+            self.waters_analysis_lf.configure(text=" ")
             for w in self.waters_analysis_lf.winfo_children():
                 w.configure(state=tk.DISABLED)
+
+    def toggle_sciex_analysis(self, enable):
+        if enable:
+            self.sciex_analysis_lf.configure(text="Sciex")
+            for w in self.sciex_analysis_lf.winfo_children():
+                w.configure(state=tk.NORMAL)
+        else:
+            self.sciex_analysis_lf.configure(text=" ")
+            for w in self.sciex_analysis_lf.winfo_children():
+                w.configure(state=tk.DISABLED)
+
+    def set_selections_text(self):
+        machine = self.machine_type.get()
+        if machine == 'Waters':
+            self.toggle_waters_analysis(True)
+            self.toggle_sciex_analysis(False)
+        if machine == 'Sciex':
+            self.toggle_waters_analysis(False)
+            self.toggle_sciex_analysis(True)
+        if machine == 'Bruker':
+            self.toggle_waters_analysis(False)
+            self.toggle_sciex_analysis(False)
 
         message = f"Folder: {self.get_current_dir()}\n"
         message += f"Machine: {machine}\n"
@@ -104,6 +128,8 @@ class Application(tk.Frame):
         ret = 'Tryptophan'
         if self.machine_type.get() == 'Waters':
             ret = self.waters_analysis_type.get()
+        elif self.machine_type.get() == 'Sciex':
+            ret = self.sciex_analysis_type.get()
         return ret
 
     def process_files(self):
@@ -206,14 +232,27 @@ class Application(tk.Frame):
         machines = [
             ("Bruker", "Bruker"),
             ("Waters", "Waters"),
+            ("Sciex", "Sciex"),
         ]                
         for name, code in machines:
             tk.Radiobutton(machine_lf, text=name, variable=self.machine_type, bd=0, command=self.set_selections_text,
                            activebackground='palegreen',
                            value=code, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
 
+    def _add_sciex_analysis_type(self):
+        self.sciex_analysis_lf = tk.LabelFrame(self.cwd_lf, text=" ", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
+        self.sciex_analysis_lf.pack(side=tk.LEFT, padx=8, pady=2)
+        sciex_analysis_types = [
+            ("Targeted Lipids", "Targeted Lipids"),
+            ("Lipid Mediators", "Lipid Mediators")
+        ]
+        for name, code in sciex_analysis_types:
+            wat_rb = tk.Radiobutton(self.sciex_analysis_lf, text=name, variable=self.sciex_analysis_type, bd=0, command=self.set_selections_text,
+                           activebackground='palegreen', state=tk.DISABLED,
+                           value=code, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
+
     def _add_waters_analysis_type(self):
-        self.waters_analysis_lf = tk.LabelFrame(self.cwd_lf, text="Analysis", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
+        self.waters_analysis_lf = tk.LabelFrame(self.cwd_lf, text=" ", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
         self.waters_analysis_lf.pack(side=tk.LEFT, padx=8, pady=2)
         waters_analysis_types = [
             ("Amino Acids", "Amino Acids"),
@@ -234,6 +273,7 @@ class Application(tk.Frame):
         cwd_button.pack(side=tk.LEFT, padx=2, pady=2)
         self._add_machine_selector()
         self._add_waters_analysis_type()
+        self._add_sciex_analysis_type()
         self.add_process_controls()
         self.add_feedback_controls()
 
