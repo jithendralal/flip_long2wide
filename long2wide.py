@@ -22,7 +22,8 @@ class Application(tk.Frame):
         self.selected_cwd = False
         self.pack(fill='both', padx=2, pady=2)
         self.master.title('ANPC - Flippy')
-        self.machine_type = tk.StringVar(value="bruker")
+        self.machine_type = tk.StringVar(value="Bruker")
+        self.waters_analysis_type = tk.StringVar(value="Amino Acids")
         self.load_config()
         self.create_widgets()
         self.df = pd.DataFrame()
@@ -34,7 +35,18 @@ class Application(tk.Frame):
         return self.config["cwd"]
 
     def set_selections_text(self):
-        message = f"Folder: {self.get_current_dir()}\nMachine: {self.machine_type.get().title()}\nFile type: .{self.get_file_type()}\n"
+        machine = self.machine_type.get()
+        if machine == 'Waters':
+            for w in self.waters_analysis_lf.winfo_children():
+                w.configure(state=tk.NORMAL)
+        else:
+            for w in self.waters_analysis_lf.winfo_children():
+                w.configure(state=tk.DISABLED)
+
+        message = f"Folder: {self.get_current_dir()}\n"
+        message += f"Machine: {machine}\n"
+        message += f"File type: .{self.get_file_type()}\n"
+        message += f"Analysis: {self.get_analysis_type()}\n"
         self.selections_text.configure(text=message)
 
     def fill_analyte_name(self, df):
@@ -84,8 +96,14 @@ class Application(tk.Frame):
 
     def get_file_type(self):
         ret = 'TXT'
-        if self.machine_type.get() == 'bruker':
+        if self.machine_type.get() == 'Bruker':
             ret = 'xlsx'
+        return ret
+    
+    def get_analysis_type(self):
+        ret = 'Tryptophan'
+        if self.machine_type.get() == 'Waters':
+            ret = self.waters_analysis_type.get()
         return ret
 
     def process_files(self):
@@ -97,7 +115,7 @@ class Application(tk.Frame):
         sheet_name1 = 'Area'
         sheet_name2 = 'Conc'
         sheet_name3 = 'RT'
-        if machine_type == 'bruker':
+        if machine_type == 'Bruker':
             sheet_name1 = 'Area of PI'
             sheet_name2 = 'Quantity Units'
 
@@ -108,7 +126,7 @@ class Application(tk.Frame):
             data_file = DataFile()
             for file in files:
                 df = data_file.read(file, file_type)
-                if machine_type == 'bruker':
+                if machine_type == 'Bruker':
                     df_area, df_quantity, df_rt = self.process_bruker(df)
                 else:
                     df_area, df_quantity, df_rt = self.process_waters(df)
@@ -182,24 +200,40 @@ class Application(tk.Frame):
         help_message = tk.Label(help_lf, bg="#ccc", fg="midnightblue", font=("Arial", 10), justify=tk.LEFT, text=help_text)
         help_message.pack(side=tk.TOP, padx=10, pady=0)
 
+    def _add_machine_selector(self):
+        machine_lf = tk.LabelFrame(self.cwd_lf, text="Machine", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
+        machine_lf.pack(side=tk.LEFT, padx=8, pady=2)
+        machines = [
+            ("Bruker", "Bruker"),
+            ("Waters", "Waters"),
+        ]                
+        for name, code in machines:
+            tk.Radiobutton(machine_lf, text=name, variable=self.machine_type, bd=0, command=self.set_selections_text,
+                           activebackground='palegreen',
+                           value=code, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
+
+    def _add_waters_analysis_type(self):
+        self.waters_analysis_lf = tk.LabelFrame(self.cwd_lf, text="Analysis", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
+        self.waters_analysis_lf.pack(side=tk.LEFT, padx=8, pady=2)
+        waters_analysis_types = [
+            ("Amino Acids", "Amino Acids"),
+            ("Bile Acids", "Bile Acids"),
+            ("Paracetamol", "Paracetamol"),
+            ("SCFAs", "SCFAs"),
+        ]
+        for name, code in waters_analysis_types:
+            wat_rb = tk.Radiobutton(self.waters_analysis_lf, text=name, variable=self.waters_analysis_type, bd=0, command=self.set_selections_text,
+                           activebackground='palegreen', state=tk.DISABLED,
+                           value=code, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
+
     def add_controls(self):
         cwd = self.config["cwd"]
         self.dir_lf = tk.LabelFrame(self.cwd_lf, text='Select your data folder', padx=2, pady=2, relief=tk.FLAT, bg="#ccc", fg="red")
         self.dir_lf.pack(side=tk.LEFT, padx=8, pady=2)
         cwd_button = tk.Button(self.dir_lf, text="Select folder", command=self.select_cwd, activebackground='palegreen')
         cwd_button.pack(side=tk.LEFT, padx=2, pady=2)
-
-        machine_lf = tk.LabelFrame(self.cwd_lf, text="Machine", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
-        machine_lf.pack(side=tk.LEFT, padx=8, pady=2)
-        machines = [
-            ("Bruker", "bruker"),
-            ("Waters", "waters"),
-        ]                
-        for name, code in machines:
-            tk.Radiobutton(machine_lf, text=name, variable=self.machine_type, bd=0, command=self.set_selections_text,
-                           activebackground='palegreen',
-                           value=code, indicatoron=True, width=12, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
-
+        self._add_machine_selector()
+        self._add_waters_analysis_type()
         self.add_process_controls()
         self.add_feedback_controls()
 
@@ -225,7 +259,7 @@ class Application(tk.Frame):
     def create_widgets(self):
         self.menubar = tk.Menu(master=self.master, bg="#aaa")
         self.master.config(menu=self.menubar)
-        self.menubar.add_command(label="Exit", command=self.exit, activebackground="#b3cccc", foreground="red")
+        self.menubar.add_command(label="Exit <Esc>", command=self.exit, activebackground="#b3cccc", foreground="red")
         self.add_options_bar()
         self.process_message.configure(text=f"Last used directory: {self.config['cwd']}", fg="#666")
 
