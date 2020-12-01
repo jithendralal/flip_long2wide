@@ -10,7 +10,6 @@ import sys
 import janitor
 import tkinter as tk
 from datetime import datetime
-from IPython.display import clear_output
 from pandas import ExcelWriter
 from tkinter import scrolledtext
 from utils import *
@@ -23,7 +22,6 @@ class Application(tk.Frame):
         self.selected_cwd = False
         self.pack(fill='both', padx=2, pady=2)
         self.master.title('ANPC - Flippy')
-        #self.file_type = tk.StringVar(value=".xlsx")
         self.machine_type = tk.StringVar(value="bruker")
         self.load_config()
         self.create_widgets()
@@ -74,8 +72,6 @@ class Application(tk.Frame):
         df.dropna(subset=['analyte_name'], inplace=True)  # drop empty rows 
         df.reset_index(drop=True, inplace=True)  # reindex after dropping rows
 
-        # print(f"\n\n{df.head(20)}\n\n")
-
         df = self.fill_analyte_name(df)  # Compound: tryptophan occurs only once, fill it in rows below it
         df = df[WATERS_VARIABLES]
         df['conc'] = pd.to_numeric(df['conc'], errors='coerce')
@@ -97,36 +93,7 @@ class Application(tk.Frame):
         machine_type = self.machine_type.get()
         file_type = self.get_file_type()
         files = get_files(current_dir, "."+file_type)
-        ret_df_area = pd.DataFrame()
-        ret_df_quantity = pd.DataFrame()
-        ret_df_rt = pd.DataFrame()
-        if len(files):
-            data_file = DataFile()
-            for file in files:
-                df = data_file.read(file, file_type)
 
-                if machine_type == 'bruker':
-                    df_area, df_quantity, df_rt = self.process_bruker(df)
-                else:
-                    df_area, df_quantity, df_rt = self.process_waters(df)
-
-                ret_df_area = ret_df_area.append(df_area)
-                ret_df_quantity = ret_df_quantity.append(df_quantity)
-                ret_df_rt = ret_df_rt.append(df_rt)
-        return ret_df_area, ret_df_quantity, ret_df_rt
-
-    def long_to_wide(self):
-        self.selected_cwd = True
-
-        area_df, quantity_df, rt_df = self.process_files()
-
-        current_dir = self.get_current_dir()
-        today = datetime.today()
-        timestamp = f"{today.year}{today.month:02}{today.day:02}_{today.hour:02}{today.minute:02}{today.second:02}"
-        filename = f"Flipped_{timestamp}.xlsx"
-        output_path = os.path.join(current_dir, filename)
-
-        machine_type = self.machine_type.get()
         sheet_name1 = 'Area'
         sheet_name2 = 'Conc'
         sheet_name3 = 'RT'
@@ -134,13 +101,30 @@ class Application(tk.Frame):
             sheet_name1 = 'Area of PI'
             sheet_name2 = 'Quantity Units'
 
-        with ExcelWriter(output_path) as writer:
-            area_df.to_excel(writer, sheet_name1)
-            quantity_df.to_excel(writer, sheet_name2)
-            rt_df.to_excel(writer, sheet_name3)
-            writer.save()
+        today = datetime.today()
+        timestamp = f"{today.year}{today.month:02}{today.day:02}_{today.hour:02}{today.minute:02}{today.second:02}"
 
-        self.process_message.configure(text=f"Saved as: {output_path}", fg="#006600", bg="#b3cccc")
+        if len(files):
+            data_file = DataFile()
+            for file in files:
+                df = data_file.read(file, file_type)
+                if machine_type == 'bruker':
+                    df_area, df_quantity, df_rt = self.process_bruker(df)
+                else:
+                    df_area, df_quantity, df_rt = self.process_waters(df)
+
+                out_filename = f"{file}_{timestamp}.xlsx"
+                output_path = os.path.join(current_dir, out_filename)
+                with ExcelWriter(output_path) as writer:
+                    df_area.to_excel(writer, sheet_name1)
+                    df_quantity.to_excel(writer, sheet_name2)
+                    df_rt.to_excel(writer, sheet_name3)
+                    writer.save()
+
+    def long_to_wide(self):
+        self.selected_cwd = True
+        self.process_files()
+        self.process_message.configure(text=f"Completed.", fg="#006600", bg="#ddd")
 
     def select_cwd(self):
         old = self.config["cwd"]
@@ -156,7 +140,7 @@ class Application(tk.Frame):
                 self.dir_lf.configure(text="", fg="#000")
         elif old:
             self.dir_lf.configure(text="", fg="#000")
-            self.process_message.configure(text=f"Selected last folder: {old}")
+            self.process_message.configure(text=f"Selected same folder: {old}")
         self.process_button.configure(state=tk.NORMAL)
         self.set_selections_text()
 
@@ -190,10 +174,10 @@ class Application(tk.Frame):
         help_lf = tk.LabelFrame(self.cwd_lf, text="", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
         help_lf.pack(side=tk.TOP, padx=1, pady=(1,10))
 
-        help_text = f"Please copy your files to a local folder on this PC and select that folder.\n\n"
-        help_text += f"Columns in long format export files:\n\n"
-        help_text += f"Bruker (xlsx): {BRUKER_VARIABLES}\n\n"
-        help_text += f"Waters (txt) : {WATERS_HELP_VARIABLES} (analyte names appear on separate lines, eg. Compound: tryptophan){' '*8}"
+        help_text = f"Please copy your files to a folder on this PC and select that folder (Each file will be processed separately)\n\n"
+        help_text += f"Files should have the columns:\n"
+        help_text += f"Bruker (xlsx): {BRUKER_VARIABLES}\n"
+        help_text += f"Waters (TXT) : {WATERS_HELP_VARIABLES} (analyte names appear on separate lines, eg. Compound: tryptophan){' '*8}"
 
         help_message = tk.Label(help_lf, bg="#ccc", fg="midnightblue", font=("Arial", 10), justify=tk.LEFT, text=help_text)
         help_message.pack(side=tk.TOP, padx=10, pady=0)
@@ -220,8 +204,10 @@ class Application(tk.Frame):
         self.add_feedback_controls()
 
     def exit(self):
-        clear_output()
         self.master.destroy()
+    
+    def close(self, event):
+        self.exit()
 
     def add_options_bar(self):
         tk.Label(self, text="FlipPy", bg="#b3cccc", font=("Arial", 16)).pack(side=tk.TOP, fill=tk.X)
@@ -244,6 +230,7 @@ class Application(tk.Frame):
         self.process_message.configure(text=f"Last used directory: {self.config['cwd']}", fg="#666")
 
         self.change_color()
+        self.master.bind('<Escape>', self.close)
 
 
 root = tk.Tk()

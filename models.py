@@ -14,18 +14,18 @@ class DataFile:
         return pd.read_excel(file)
 
     def read_TXT(file):
-        with open(file) as tsv, open(file + ".csv", "w+") as temp:
+        with open(file) as tsv, open(file + ".csv", "w+") as tmp:
             first_row = True
             for aline in tsv:
                 row = aline.strip('\n').split('\t')
                 if first_row:
                     for i in  range(13 - len(row)):
-                        row.append(f"Variable{i}")
+                        row.append(f"Dummy{i}")  # a dummy header row
                     first_row = False
                 else:
                     for i in  range(13 - len(row)):
                         row.append("")
-                temp.write(",".join(row) + "\n")
+                tmp.write(",".join(row) + "\n")
         df = pd.read_csv(file + ".csv")
         os.remove(file + ".csv")
         return df
