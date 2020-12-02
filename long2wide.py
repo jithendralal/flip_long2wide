@@ -1,17 +1,11 @@
 # coding: utf-8
 
-import json
-import logging
-import numpy as np
-import os
 import pandas as pd
-import re
-import sys
 import janitor
 import tkinter as tk
 from datetime import datetime
 from pandas import ExcelWriter
-from tkinter import scrolledtext
+from mol_weights import *
 from utils import *
 from models import DataFile
 
@@ -23,8 +17,7 @@ class Application(tk.Frame):
         self.pack(fill='both', padx=2, pady=2)
         self.master.title('ANPC - Flippy')
         self.machine_type = tk.StringVar(value="Bruker")
-        self.waters_analysis_type = tk.StringVar(value="Amino Acids")
-        self.sciex_analysis_type = tk.StringVar(value="Targeted Lipids")
+        self.analysis_type = tk.StringVar(value="Amino Acids")
         self.load_config()
         self.create_widgets()
         self.df = pd.DataFrame()
@@ -35,43 +28,78 @@ class Application(tk.Frame):
     def get_current_dir(self):
         return self.config["cwd"]
 
-    def toggle_waters_analysis(self, enable):
+    def disable_analysis_types(self):
+        for w in self.analysis_lf.winfo_children():
+            w.configure(state=tk.DISABLED)
+
+    def show_bruker_analysis_types(self):
+        self.analysis_lf.configure(text="Bruker")
+        self.disable_analysis_types()
+        for w in self.analysis_lf.winfo_children():
+            if w['text'] in self.bruker_analysis_types:
+                w.configure(state=tk.NORMAL)
+
+    def show_waters_analysis_types(self):
+        self.analysis_lf.configure(text="Waters")
+        self.disable_analysis_types()
+        for w in self.analysis_lf.winfo_children():
+            if w['text'] in self.waters_analysis_types:
+                w.configure(state=tk.NORMAL)
+
+    def show_sciex_analysis_types(self):
+        self.analysis_lf.configure(text="Sciex")
+        self.disable_analysis_types()
+        for w in self.analysis_lf.winfo_children():
+            if w['text'] in self.sciex_analysis_types:
+                w.configure(state=tk.NORMAL)
+
+    def toggle_unit_conc(self, enable):
         if enable:
-            self.waters_analysis_lf.configure(text="Waters")
-            for w in self.waters_analysis_lf.winfo_children():
+            self.unit_conc_lf.configure(text="Tryptophan")
+            for w in self.unit_conc_lf.winfo_children():
                 w.configure(state=tk.NORMAL)
         else:
-            self.waters_analysis_lf.configure(text=" ")
-            for w in self.waters_analysis_lf.winfo_children():
+            self.unit_conc_lf.configure(text=" ")
+            for w in self.unit_conc_lf.winfo_children():
                 w.configure(state=tk.DISABLED)
 
-    def toggle_sciex_analysis(self, enable):
+    def toggle_double_conc(self, enable):
         if enable:
-            self.sciex_analysis_lf.configure(text="Sciex")
-            for w in self.sciex_analysis_lf.winfo_children():
+            self.double_conc_lf.configure(text="Amino Acids")
+            for w in self.double_conc_lf.winfo_children():
                 w.configure(state=tk.NORMAL)
         else:
-            self.sciex_analysis_lf.configure(text=" ")
-            for w in self.sciex_analysis_lf.winfo_children():
+            self.double_conc_lf.configure(text=" ")
+            for w in self.double_conc_lf.winfo_children():
                 w.configure(state=tk.DISABLED)
+
+    def set_processing_options(self):
+        analysis_type = self.get_analysis_type()
+        if analysis_type == "Tryptophan":
+            self.toggle_unit_conc(True)
+            self.toggle_double_conc(False)
+        elif analysis_type == "Amino Acids":
+            self.toggle_double_conc(True)
+            self.toggle_unit_conc(False)
+        else:
+            self.toggle_double_conc(False)
+            self.toggle_unit_conc(False)
 
     def set_selections_text(self):
         machine = self.machine_type.get()
         if machine == 'Waters':
-            self.toggle_waters_analysis(True)
-            self.toggle_sciex_analysis(False)
+            self.show_waters_analysis_types()
         if machine == 'Sciex':
-            self.toggle_waters_analysis(False)
-            self.toggle_sciex_analysis(True)
+            self.show_sciex_analysis_types()
         if machine == 'Bruker':
-            self.toggle_waters_analysis(False)
-            self.toggle_sciex_analysis(False)
-
+            self.show_bruker_analysis_types()
+        analysis_type = self.get_analysis_type()
         message = f"Folder: {self.get_current_dir()}\n"
         message += f"Machine: {machine}\n"
         message += f"File type: .{self.get_file_type()}\n"
-        message += f"Analysis: {self.get_analysis_type()}\n"
+        message += f"Analysis: {analysis_type}\n"
         self.selections_text.configure(text=message)
+        self.set_processing_options()
 
     def fill_analyte_name(self, df):
         analytes = df[df['analyte_name'].apply(lambda x: str(x).startswith('Compound'))].index.tolist()
@@ -85,6 +113,12 @@ class Application(tk.Frame):
                 fill_value = df['analyte_name'][analytes[analytes_index]].split(':')[1].strip()
         return df
 
+    def extra_process_bruker(self, df_quantity):
+        if self.double_conc.get():
+            for col in df_quantity.columns.to_list():
+                df_quantity[col] = df_quantity[col].apply(double_it)
+        return df_quantity
+
     def process_bruker(self, df):
         df = janitor.clean_names(df, remove_special=True, case_type='snake')
         df = df[BRUKER_VARIABLES]
@@ -92,7 +126,15 @@ class Application(tk.Frame):
         df_area = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='area_of_pi')  # , aggfunc=np.mean)
         df_quantity = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='quantity_units')  # , aggfunc=np.mean)
         df_rt = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='rt_min')  # , aggfunc=np.mean)
+        df_quantity = self.extra_process_bruker(df_quantity)
         return df_area, df_quantity, df_rt
+
+    def extra_process_waters(self, df_quantity):
+        if self.unit_conc.get():
+            for col in df_quantity.columns.to_list():
+                mol_weight = mol_weights[col]
+                df_quantity[col] = df_quantity[col].apply(unit_conc, args=(mol_weight,))
+        return df_quantity
 
     def process_waters(self, df):
         headers = df.loc[5].values.flatten().tolist()  # get the 5th row as headers
@@ -116,6 +158,9 @@ class Application(tk.Frame):
         df_area = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='area')  # , fill_value=0)  # , aggfunc=np.mean)
         df_quantity = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='conc')  # , fill_value=0)  # , aggfunc=np.mean)
         df_rt = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='rt')  # , fill_value=0)  # , aggfunc=np.mean)
+
+        df_quantity = self.extra_process_waters(df_quantity)
+
         return df_area, df_quantity, df_rt
 
     def get_file_type(self):
@@ -125,12 +170,11 @@ class Application(tk.Frame):
         return ret
     
     def get_analysis_type(self):
-        ret = 'Tryptophan'
-        if self.machine_type.get() == 'Waters':
-            ret = self.waters_analysis_type.get()
-        elif self.machine_type.get() == 'Sciex':
-            ret = self.sciex_analysis_type.get()
-        return ret
+        return self.analysis_type.get()
+
+    def machine_change(self):
+        self.analysis_type.set("test")
+        self.set_selections_text()
 
     def process_files(self):
         current_dir = self.get_current_dir()
@@ -151,19 +195,20 @@ class Application(tk.Frame):
         if len(files):
             data_file = DataFile()
             for file in files:
-                df = data_file.read(file, file_type)
-                if machine_type == 'Bruker':
-                    df_area, df_quantity, df_rt = self.process_bruker(df)
-                else:
-                    df_area, df_quantity, df_rt = self.process_waters(df)
+                if '_flipped' not in file:
+                    df = data_file.read(file, file_type)
+                    if machine_type == 'Bruker':
+                        df_area, df_quantity, df_rt = self.process_bruker(df)
+                    else:
+                        df_area, df_quantity, df_rt = self.process_waters(df)
 
-                out_filename = f"{file}_{timestamp}.xlsx"
-                output_path = os.path.join(current_dir, out_filename)
-                with ExcelWriter(output_path) as writer:
-                    df_area.to_excel(writer, sheet_name1)
-                    df_quantity.to_excel(writer, sheet_name2)
-                    df_rt.to_excel(writer, sheet_name3)
-                    writer.save()
+                    out_filename = f"{file}_{timestamp}_flipped.xlsx"
+                    output_path = os.path.join(current_dir, out_filename)
+                    with ExcelWriter(output_path) as writer:
+                        df_area.to_excel(writer, sheet_name1)
+                        df_quantity.to_excel(writer, sheet_name2)
+                        df_rt.to_excel(writer, sheet_name3)
+                        writer.save()
 
     def long_to_wide(self):
         self.selected_cwd = True
@@ -237,41 +282,38 @@ class Application(tk.Frame):
             ("Sciex", "Sciex"),
         ]                
         for name, code in machines:
-            tk.Radiobutton(self.machine_lf, text=name, variable=self.machine_type, bd=0, command=self.set_selections_text,
+            tk.Radiobutton(self.machine_lf, text=name, variable=self.machine_type, bd=0, command=self.machine_change,
                            activebackground='palegreen', state=tk.DISABLED,
                            value=code, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
 
-    def _add_sciex_analysis_type(self):
-        self.sciex_analysis_lf = tk.LabelFrame(self.cwd_lf, text=" ", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
-        self.sciex_analysis_lf.pack(side=tk.LEFT, padx=8, pady=2)
-        sciex_analysis_types = [
-            ("Targeted Lipids", "Targeted Lipids"),
-            ("Lipid Mediators", "Lipid Mediators")
-        ]
-        for name, code in sciex_analysis_types:
-            wat_rb = tk.Radiobutton(self.sciex_analysis_lf, text=name, variable=self.sciex_analysis_type, bd=0, command=self.set_selections_text,
-                           activebackground='palegreen', state=tk.DISABLED,
-                           value=code, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
+    def _add_analysis_type(self):
+        self.analysis_lf = tk.LabelFrame(self.cwd_lf, text=" ", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
+        self.analysis_lf.pack(side=tk.LEFT, padx=8, pady=2)
 
-    def _add_waters_analysis_type(self):
-        self.waters_analysis_lf = tk.LabelFrame(self.cwd_lf, text=" ", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
-        self.waters_analysis_lf.pack(side=tk.LEFT, padx=8, pady=2)
-        waters_analysis_types = [
-            ("Amino Acids", "Amino Acids"),
-            ("Bile Acids", "Bile Acids"),
-            ("Paracetamol", "Paracetamol"),
-            ("SCFAs", "SCFAs"),
+        self.bruker_analysis_types = [
+            "Amino Acids",
         ]
-        for name, code in waters_analysis_types:
-            wat_rb = tk.Radiobutton(self.waters_analysis_lf, text=name, variable=self.waters_analysis_type, bd=0, command=self.set_selections_text,
+        self.sciex_analysis_types = [
+            "Targeted Lipids",
+            "Lipid Mediators",
+        ]
+        self.waters_analysis_types = [
+            "Tryptophan",
+            "Bile Acids",
+            "Paracetamol",
+            "SCFAs",
+        ]
+        analysis_types = self.bruker_analysis_types + self.waters_analysis_types + self.sciex_analysis_types
+        for name in analysis_types:
+            wat_rb = tk.Radiobutton(self.analysis_lf, text=name, variable=self.analysis_type, bd=0, command=self.set_selections_text,
                            activebackground='palegreen', state=tk.DISABLED,
-                           value=code, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
+                           value=name, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
 
     def _add_double_conc_selector(self):
         self.double_conc_lf = tk.LabelFrame(self.cwd_lf, text=" ", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
         self.double_conc_lf.pack(side=tk.LEFT, padx=8, pady=2)
         self.double_conc = tk.IntVar(value=1)
-        tk.Checkbutton(self.double_conc_lf, text="Double Conc.", state=tk.DISABLED, variable=self.double_conc, bg="#ddd", activebackground="palegreen").pack(side=tk.LEFT, padx=2, pady=2)
+        tk.Checkbutton(self.double_conc_lf, text="Double Qty.", state=tk.DISABLED, variable=self.double_conc, bg="#ddd", activebackground="palegreen").pack(side=tk.LEFT, padx=2, pady=2)
 
     def _add_unit_conc_selector(self):
         self.unit_conc_lf = tk.LabelFrame(self.cwd_lf, text=" ", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
@@ -286,8 +328,7 @@ class Application(tk.Frame):
         cwd_button = tk.Button(self.dir_lf, text="Select folder", command=self.select_cwd, activebackground='palegreen')
         cwd_button.pack(side=tk.LEFT, padx=2, pady=2)
         self._add_machine_selector()
-        self._add_waters_analysis_type()
-        self._add_sciex_analysis_type()
+        self._add_analysis_type()
         self._add_double_conc_selector()
         self._add_unit_conc_selector()
         self.add_process_controls()
@@ -325,6 +366,6 @@ class Application(tk.Frame):
 
 root = tk.Tk()
 app = Application(root)
-root.geometry("900x500")
+root.geometry("900x600")
 root.configure(background='#b3cccc')
 root.mainloop()

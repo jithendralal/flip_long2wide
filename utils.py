@@ -79,3 +79,12 @@ def set_config(key, value):
     with open(CONFIG_FILE, "w") as f:
         config[key] = value
         json.dump(config, f, indent=4)
+
+
+def double_it(x):
+    return 2 * x
+
+
+def unit_conx(x, mol_weight):
+    # divide concentration by the molecular weight for each analyte
+    return x / mol_weight
