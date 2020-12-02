@@ -85,6 +85,6 @@ def double_it(x):
     return 2 * x
 
 
-def unit_conx(x, mol_weight):
+def unit_conc(x, mol_weight):
     # divide concentration by the molecular weight for each analyte
     return x / mol_weight
