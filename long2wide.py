@@ -94,6 +94,7 @@ class Application(tk.Frame):
             self.toggle_unit_conc(False)
 
     def set_selections_text(self):
+        self.process_message.configure(text=f" ", fg="#000")
         machine = self.machine_type.get()
         if machine == 'Waters':
             self.show_waters_analysis_types()
@@ -134,7 +135,11 @@ class Application(tk.Frame):
         analysis_type = self.analysis_type.get()
         if analysis_type == 'Amino Acids':
             df = janitor.clean_names(df, remove_special=True, case_type='snake')
-            df = df[BRUKER_VARIABLES]
+            try:
+                df = df[BRUKER_VARIABLES]
+            except Exception:
+                self.process_message.configure(text=f"Wrong parameters selected. Please check your selections.", fg="red")
+                return
             df['quantity_units'] = pd.to_numeric(df['quantity_units'], errors='coerce')
             df_area = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='area_of_pi')  # , aggfunc=np.mean)
             df_quantity = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='quantity_units')  # , aggfunc=np.mean)
@@ -188,14 +193,14 @@ class Application(tk.Frame):
         return self.analysis_type.get()
 
     def machine_change(self):
-        self.analysis_type.set("empty")
+        self.analysis_type.set(" ")
         self.set_selections_text()
 
     def process_files(self):
         current_dir = self.get_current_dir()
         machine_type = self.machine_type.get()
         analysis_type = self.analysis_type.get()
-        if analysis_type == 'empty':
+        if analysis_type == ' ':
             self.process_message.configure(text=f"Analysis type not selected.", fg="red")
             return
         if (machine_type, analysis_type) not in IMPLEMENTED:
@@ -221,9 +226,15 @@ class Application(tk.Frame):
                 if '_flipped' not in file:
                     df = data_file.read(file, file_type)
                     if machine_type == 'Bruker':
-                        df_area, df_quantity, df_rt = self.process_bruker(df)
+                        ret = self.process_bruker(df)
+                        if not ret:
+                            return
+                        df_area, df_quantity, df_rt = ret[0], ret[1], ret[2]
                     else:
-                        df_area, df_quantity, df_rt = self.process_waters(df)
+                        ret = self.process_waters(df)
+                        if not ret:
+                            return
+                        df_area, df_quantity, df_rt = ret[0], ret[1], ret[2]
 
                     out_filename = f"{file}_{timestamp}_flipped.xlsx"
                     output_path = os.path.join(current_dir, out_filename)
@@ -375,13 +386,19 @@ class Application(tk.Frame):
             self.config_window.wm_title("Help")
             self.config_window.wm_protocol("WM_DELETE_WINDOW", lambda: self.on_delete_child(self.config_window))
 
-            help_text = f"Instructions:\n\n"
-            help_text += f"Files should have these columns:\n\n"
+            help_text = f"FlipPy Instructions:\n"
+            tk.Label(self.config_window, text=help_text, bg="#ddd", font=("Arial", 12), anchor="w").pack(fill=tk.X)
+
+            help_text = f"\nPlease copy your files to an empty folder and select that folder."
+            help_text += f"\nEach file will be processed separately and each will be saved as an xlsx.\n"
+            tk.Label(self.config_window, text=help_text, bg="#ddd", font=("Arial", 10), justify="left").pack(fill=tk.X)
+
+            help_text = f"\nFiles should have these columns:\n\n"
             help_text += f"Bruker (xlsx): {BRUKER_VARIABLES}\n"
             help_text += f"Waters (TXT) : {WATERS_HELP_VARIABLES} (analyte names appear on separate lines, eg. Compound: tryptophan)\n"
             tk.Label(self.config_window, text=help_text, bg="#ddd", font=("Arial", 10), justify="left").pack()
 
-            tk.Label(self.config_window, text="Molecular weights:", bg="#ddd", font=("Arial", 10), justify="left").pack(fill=tk.X)
+            tk.Label(self.config_window, text="Molecular weights:", bg="#ddd", font=("Arial", 12), anchor="w").pack(fill=tk.X)
 
             ctext = scrolledtext.ScrolledText(self.config_window, height=20, font=('Courier', 10))
             ctext.pack(padx=3, pady=3, fill=tk.BOTH)
