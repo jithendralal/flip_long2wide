@@ -103,11 +103,14 @@ class Application(tk.Frame):
         if machine == 'Bruker':
             self.show_bruker_analysis_types()
         analysis_type = self.get_analysis_type()
-        message = f"Folder: {self.get_current_dir()}\n"
-        message += f"Machine: {machine}\n"
-        message += f"File type: .{self.get_file_type()}\n"
-        message += f"Analysis: {analysis_type}\n"
-        self.selections_text.configure(text=message)
+        message = f"Folder: {self.get_current_dir()}"
+        self.selections_folder_text.configure(text=message)
+        message = f"Machine: {machine}"
+        self.selections_machine_text.configure(text=message)
+        message = f"File type: .{self.get_file_type()}"
+        self.selections_file_text.configure(text=message)
+        message = f"Analysis: {analysis_type}"
+        self.selections_analysis_text.configure(text=message)
         self.set_processing_options()
 
     def fill_analyte_name(self, df):
@@ -280,11 +283,33 @@ class Application(tk.Frame):
             root.after(600, self.change_color)
 
     def add_feedback_controls(self):
-        feedback_lf = tk.LabelFrame(self.master, text="Your selections:", fg='#666', padx=2, pady=2, relief=tk.FLAT, bg="#b3cccc")
+        feedback_lf = tk.LabelFrame(self.master, text="Your selections:", fg='#444', bg="#ccc", padx=5, pady=5, relief=tk.FLAT)
         feedback_lf.pack(side=tk.TOP, padx=2, pady=2)
 
-        self.selections_text = tk.Label(feedback_lf, bg="#b3cccc", fg="midnightblue", font=("Arial", 11), justify=tk.LEFT)
-        self.selections_text.pack(side=tk.TOP, padx=2, pady=2)
+        h = 15
+        w = 180
+        f = tk.Frame(feedback_lf, height=h, width=w, bg="#ddd")
+        f.pack(pady=3)
+        self.selections_folder_text = tk.Label(f, bg="#ddd", fg="#222", font=("Arial", 10), anchor="w")
+        self.selections_folder_text.pack(side=tk.TOP, padx=2, pady=1, fill=tk.BOTH, expand=1)
+
+        f = tk.Frame(feedback_lf, height=h, width=w, bg="#eee")
+        f.pack()
+        f.pack_propagate(0)
+        self.selections_machine_text = tk.Label(f, bg="#eee", fg="#222", font=("Arial", 10), anchor="w")
+        self.selections_machine_text.pack(side=tk.TOP, padx=2, pady=1, fill=tk.BOTH, expand=1)
+
+        f = tk.Frame(feedback_lf, height=h, width=w, bg="#ddd")
+        f.pack()
+        f.pack_propagate(0)
+        self.selections_file_text = tk.Label(f, bg="#ddd", fg="#222", font=("Arial", 10), anchor="w")
+        self.selections_file_text.pack(side=tk.TOP, padx=2, pady=1, fill=tk.BOTH, expand=1)
+
+        f = tk.Frame(feedback_lf, height=h, width=w, bg="#eee")
+        f.pack()
+        f.pack_propagate(0)
+        self.selections_analysis_text = tk.Label(f, bg="#eee", fg="#222", font=("Arial", 10), anchor="w")
+        self.selections_analysis_text.pack(side=tk.TOP, padx=2, pady=1, fill=tk.BOTH, expand=1)
 
     def add_process_controls(self):
         process_lf = tk.LabelFrame(self.master, text="", padx=2, pady=2, relief=tk.FLAT, bg="#b3cccc")
@@ -306,7 +331,7 @@ class Application(tk.Frame):
         help_text += f"Bruker (xlsx): {BRUKER_VARIABLES}\n"
         help_text += f"Waters (TXT) : {WATERS_HELP_VARIABLES} (analyte names appear on separate lines, eg. Compound: tryptophan){' '*32}"
 
-        help_message = tk.Label(help_lf, bg="#ccc", fg="midnightblue", font=("Arial", 10), justify=tk.LEFT, text=help_text)
+        help_message = tk.Label(help_lf, bg="#ccc", fg="#222", font=("Arial", 10), justify=tk.LEFT, text=help_text)
         help_message.pack(side=tk.TOP, padx=10, pady=0)
 
     def _add_machine_selector(self):
