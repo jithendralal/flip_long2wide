@@ -11,6 +11,12 @@ from utils import *
 from models import DataFile
 
 
+IMPLEMENTED = [
+    ('Bruker', 'Amino Acids'),
+    ('Waters', 'Tryptophan'),
+]
+
+
 class Application(tk.Frame):
     def __init__(self, master=None):
         tk.Frame.__init__(self, master)
@@ -35,21 +41,21 @@ class Application(tk.Frame):
             w.configure(state=tk.DISABLED)
 
     def show_bruker_analysis_types(self):
-        self.analysis_lf.configure(text="Bruker")
+        self.analysis_lf.configure(text="Analysis (Bruker)")
         self.disable_analysis_types()
         for w in self.analysis_lf.winfo_children():
             if w['text'] in self.bruker_analysis_types:
                 w.configure(state=tk.NORMAL)
 
     def show_waters_analysis_types(self):
-        self.analysis_lf.configure(text="Waters")
+        self.analysis_lf.configure(text="Analysis (Waters)")
         self.disable_analysis_types()
         for w in self.analysis_lf.winfo_children():
             if w['text'] in self.waters_analysis_types:
                 w.configure(state=tk.NORMAL)
 
     def show_sciex_analysis_types(self):
-        self.analysis_lf.configure(text="Sciex")
+        self.analysis_lf.configure(text="Analysis (Sciex)")
         self.disable_analysis_types()
         for w in self.analysis_lf.winfo_children():
             if w['text'] in self.sciex_analysis_types:
@@ -121,6 +127,9 @@ class Application(tk.Frame):
                 df_quantity[col] = df_quantity[col].apply(double_it)
         return df_quantity
 
+    def not_implemented(self):
+        pass
+
     def process_bruker(self, df):
         analysis_type = self.analysis_type.get()
         if analysis_type == 'Amino Acids':
@@ -179,12 +188,20 @@ class Application(tk.Frame):
         return self.analysis_type.get()
 
     def machine_change(self):
-        self.analysis_type.set("test")
+        self.analysis_type.set("empty")
         self.set_selections_text()
 
     def process_files(self):
         current_dir = self.get_current_dir()
         machine_type = self.machine_type.get()
+        analysis_type = self.analysis_type.get()
+        if analysis_type == 'empty':
+            self.process_message.configure(text=f"Analysis type not selected.", fg="red")
+            return
+        if (machine_type, analysis_type) not in IMPLEMENTED:
+            self.process_message.configure(text=f"{machine_type}-{analysis_type} not implemented.", fg="red")
+            return
+
         file_type = self.get_file_type()
         files = get_files(current_dir, "."+file_type)
 
@@ -215,11 +232,13 @@ class Application(tk.Frame):
                         df_quantity.to_excel(writer, sheet_name2)
                         df_rt.to_excel(writer, sheet_name3)
                         writer.save()
+        return True
 
     def long_to_wide(self):
         self.selected_cwd = True
-        self.process_files()
-        self.process_message.configure(text=f"Completed.", fg="#006600", bg="#ddd")
+        result = self.process_files()
+        if result:
+            self.process_message.configure(text=f"Completed.", fg="#006600", bg="#ddd")
 
     def select_cwd(self):
         old = self.config["cwd"]
@@ -293,7 +312,7 @@ class Application(tk.Frame):
                            value=code, relief=tk.SOLID).pack(anchor=tk.W, padx=2, pady=2)
 
     def _add_analysis_type(self):
-        self.analysis_lf = tk.LabelFrame(self.cwd_lf, text=" ", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
+        self.analysis_lf = tk.LabelFrame(self.cwd_lf, text="Analysis", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
         self.analysis_lf.pack(side=tk.LEFT, padx=8, pady=2)
 
         self.bruker_analysis_types = [
