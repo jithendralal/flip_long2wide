@@ -5,6 +5,7 @@ import janitor
 import tkinter as tk
 from datetime import datetime
 from pandas import ExcelWriter
+from tkinter import scrolledtext
 from mol_weights import *
 from utils import *
 from models import DataFile
@@ -21,6 +22,7 @@ class Application(tk.Frame):
         self.load_config()
         self.create_widgets()
         self.df = pd.DataFrame()
+        self.config_window = False
 
     def load_config(self):
         self.config = get_config()
@@ -120,14 +122,16 @@ class Application(tk.Frame):
         return df_quantity
 
     def process_bruker(self, df):
-        df = janitor.clean_names(df, remove_special=True, case_type='snake')
-        df = df[BRUKER_VARIABLES]
-        df['quantity_units'] = pd.to_numeric(df['quantity_units'], errors='coerce')
-        df_area = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='area_of_pi')  # , aggfunc=np.mean)
-        df_quantity = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='quantity_units')  # , aggfunc=np.mean)
-        df_rt = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='rt_min')  # , aggfunc=np.mean)
-        df_quantity = self.extra_process_bruker(df_quantity)
-        return df_area, df_quantity, df_rt
+        analysis_type = self.analysis_type.get()
+        if analysis_type == 'Amino Acids':
+            df = janitor.clean_names(df, remove_special=True, case_type='snake')
+            df = df[BRUKER_VARIABLES]
+            df['quantity_units'] = pd.to_numeric(df['quantity_units'], errors='coerce')
+            df_area = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='area_of_pi')  # , aggfunc=np.mean)
+            df_quantity = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='quantity_units')  # , aggfunc=np.mean)
+            df_rt = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='rt_min')  # , aggfunc=np.mean)
+            df_quantity = self.extra_process_bruker(df_quantity)
+            return df_area, df_quantity, df_rt
 
     def extra_process_waters(self, df_quantity):
         if self.unit_conc.get():
@@ -137,31 +141,33 @@ class Application(tk.Frame):
         return df_quantity
 
     def process_waters(self, df):
-        headers = df.loc[5].values.flatten().tolist()  # get the 5th row as headers
-        
-        headers[0] = 'analyte_name'
-        headers[1] = 'hash'
-        df.columns = headers
-        df = janitor.clean_names(df, remove_special=True, case_type='snake')
-        headers = df.columns.to_list()
-        headers = [x.strip('_') for x in headers]  # remove leading and trailing '_' in variables
-        df.columns = headers
+        analysis_type = self.analysis_type.get()
+        if analysis_type =='Tryptophan':
+            headers = df.loc[5].values.flatten().tolist()  # get the 5th row as headers
+            
+            headers[0] = 'analyte_name'
+            headers[1] = 'hash'
+            df.columns = headers
+            df = janitor.clean_names(df, remove_special=True, case_type='snake')
+            headers = df.columns.to_list()
+            headers = [x.strip('_') for x in headers]  # remove leading and trailing '_' in variables
+            df.columns = headers
 
-        df.dropna(subset=['analyte_name'], inplace=True)  # drop empty rows 
-        df.reset_index(drop=True, inplace=True)  # reindex after dropping rows
+            df.dropna(subset=['analyte_name'], inplace=True)  # drop empty rows 
+            df.reset_index(drop=True, inplace=True)  # reindex after dropping rows
 
-        df = self.fill_analyte_name(df)  # Compound: tryptophan occurs only once, fill it in rows below it
-        df = df[WATERS_VARIABLES]
-        df['conc'] = pd.to_numeric(df['conc'], errors='coerce')
-        df["area"] = pd.to_numeric(df["area"], errors='coerce')
-        df["rt"] = pd.to_numeric(df["rt"], errors='coerce')
-        df_area = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='area')  # , fill_value=0)  # , aggfunc=np.mean)
-        df_quantity = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='conc')  # , fill_value=0)  # , aggfunc=np.mean)
-        df_rt = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='rt')  # , fill_value=0)  # , aggfunc=np.mean)
+            df = self.fill_analyte_name(df)  # Compound: tryptophan occurs only once, fill it in rows below it
+            df = df[WATERS_VARIABLES]
+            df['conc'] = pd.to_numeric(df['conc'], errors='coerce')
+            df["area"] = pd.to_numeric(df["area"], errors='coerce')
+            df["rt"] = pd.to_numeric(df["rt"], errors='coerce')
+            df_area = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='area')  # , fill_value=0)  # , aggfunc=np.mean)
+            df_quantity = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='conc')  # , fill_value=0)  # , aggfunc=np.mean)
+            df_rt = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='rt')  # , fill_value=0)  # , aggfunc=np.mean)
 
-        df_quantity = self.extra_process_waters(df_quantity)
+            df_quantity = self.extra_process_waters(df_quantity)
 
-        return df_area, df_quantity, df_rt
+            return df_area, df_quantity, df_rt
 
     def get_file_type(self):
         ret = 'TXT'
@@ -323,9 +329,9 @@ class Application(tk.Frame):
 
     def add_controls(self):
         cwd = self.config["cwd"]
-        self.dir_lf = tk.LabelFrame(self.cwd_lf, text='Important !', padx=2, pady=2, relief=tk.FLAT, bg="#ccc", fg="red")
+        self.dir_lf = tk.LabelFrame(self.cwd_lf, text='Select', padx=2, pady=2, relief=tk.FLAT, bg="#ccc", fg="red")
         self.dir_lf.pack(side=tk.LEFT, padx=8, pady=2)
-        cwd_button = tk.Button(self.dir_lf, text="Select folder", command=self.select_cwd, activebackground='palegreen')
+        cwd_button = tk.Button(self.dir_lf, text="Folder", command=self.select_cwd, activebackground='palegreen')
         cwd_button.pack(side=tk.LEFT, padx=2, pady=2)
         self._add_machine_selector()
         self._add_analysis_type()
@@ -336,7 +342,36 @@ class Application(tk.Frame):
 
     def exit(self):
         self.master.destroy()
-    
+
+    def on_delete_child(self, w):
+        w.destroy()
+        self.config_window = None
+
+    def help(self, event):
+        self.show_help()
+
+    def show_help(self):
+        if not self.config_window:
+            self.config_window = tk.Toplevel(self)
+            self.config_window.wm_title("Help")
+            self.config_window.wm_protocol("WM_DELETE_WINDOW", lambda: self.on_delete_child(self.config_window))
+
+            help_text = f"Instructions:\n\n"
+            help_text += f"Files should have these columns:\n\n"
+            help_text += f"Bruker (xlsx): {BRUKER_VARIABLES}\n"
+            help_text += f"Waters (TXT) : {WATERS_HELP_VARIABLES} (analyte names appear on separate lines, eg. Compound: tryptophan)\n"
+            tk.Label(self.config_window, text=help_text, bg="#ddd", font=("Arial", 10), justify="left").pack()
+
+            tk.Label(self.config_window, text="Molecular weights:", bg="#ddd", font=("Arial", 10), justify="left").pack(fill=tk.X)
+
+            ctext = scrolledtext.ScrolledText(self.config_window, height=20, font=('Courier', 10))
+            ctext.pack(padx=3, pady=3, fill=tk.BOTH)
+            mol_list = [f"{k: <50}- {mol_weights[k]}\n" for k in mol_weights.keys()]
+            help_text = "".join(mol_list)
+            ctext.insert("end", help_text)
+        else:
+            self.raise_above_all(self.config_window)
+
     def close(self, event):
         self.exit()
 
@@ -356,12 +391,20 @@ class Application(tk.Frame):
     def create_widgets(self):
         self.menubar = tk.Menu(master=self.master, bg="#aaa")
         self.master.config(menu=self.menubar)
-        self.menubar.add_command(label="Exit <Esc>", command=self.exit, activebackground="#b3cccc", foreground="red")
+
+        filemenu = tk.Menu(self.menubar, tearoff=0)
+        filemenu.add_command(label=f"Help           F1", command=self.show_help, activebackground="palegreen")
+        filemenu.add_separator()
+        filemenu.add_command(label=f"Exit            Esc", command=self.exit, activebackground="palegreen")
+        self.menubar.add_cascade(label="File", menu=filemenu)
+
         self.add_options_bar()
-        self.process_message.configure(text=f"Last used directory: {self.config['cwd']}", fg="#666")
+        self.process_message.configure(text=f"Last used folder: {self.config['cwd']}", fg="#666")
 
         self.change_color()
         self.master.bind('<Escape>', self.close)
+        self.master.bind('<F1>', self.help)
+        self.select_cwd()
 
 
 root = tk.Tk()
