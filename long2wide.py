@@ -283,15 +283,16 @@ class Application(tk.Frame):
             root.after(600, self.change_color)
 
     def add_feedback_controls(self):
-        feedback_lf = tk.LabelFrame(self.master, text="Your selections:", fg='#444', bg="#ccc", padx=5, pady=5, relief=tk.FLAT)
-        feedback_lf.pack(side=tk.TOP, padx=2, pady=2)
-
-        h = 15
-        w = 180
-        f = tk.Frame(feedback_lf, height=h, width=w, bg="#ddd")
+        feedback_lf = tk.LabelFrame(self.master, text="Your selections:", fg='#444', bg="#ccc", relief=tk.FLAT)
+        feedback_lf.pack(side=tk.TOP, pady=10)
+        
+        f = tk.Frame(feedback_lf, bg="#ddd")
         f.pack(pady=3)
         self.selections_folder_text = tk.Label(f, bg="#ddd", fg="#222", font=("Arial", 10), anchor="w")
         self.selections_folder_text.pack(side=tk.TOP, padx=2, pady=1, fill=tk.BOTH, expand=1)
+
+        h = 15
+        w = 180
 
         f = tk.Frame(feedback_lf, height=h, width=w, bg="#eee")
         f.pack()

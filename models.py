@@ -15,17 +15,36 @@ class DataFile:
 
     def read_TXT(file):
         with open(file) as tsv, open(file + ".csv", "w+") as tmp:
-            first_row = True
+            top_rows = []
+            i = 0
+            col_count = 0
+
             for aline in tsv:
-                row = aline.strip('\n').split('\t')
-                if first_row:
-                    for i in  range(13 - len(row)):
-                        row.append(f"Dummy{i}")  # a dummy header row
-                    first_row = False
-                else:
-                    for i in  range(13 - len(row)):
+                row = aline.strip('\n').replace(',',';').split('\t')  # if there is a comma in data replace it with semi-colon
+                if i <= 6:
+                    top_rows.append(row)
+
+                if i == 6:  # this is the header row (7th)
+                    col_count = len(row)  # no of actual columns in TXT
+                    
+                    for i in range(col_count-1):
+                        top_rows[0].append(f"Dummy{i}")  # a dummy header row
+                    
+                    for j in range(1, 6):  # make the number of columns same for first 6 rows
+                        top_row = top_rows[j]
+                        for col in range(col_count - len(top_row)):
+                            top_row.append("")
+
+                    for row in top_rows:
+                        tmp.write(",".join(row) + "\n")  # write to csv
+
+                if i > 6:
+                    for col in  range(col_count - len(row)):
                         row.append("")
-                tmp.write(",".join(row) + "\n")
+                    tmp.write(",".join(row) + "\n")
+
+                i = i + 1
+        
         df = pd.read_csv(file + ".csv")
-        os.remove(file + ".csv")
+        #os.remove(file + ".csv")
         return df
