@@ -31,5 +31,6 @@ mol_weights = {
     "quinolinic acid": 167.1,
     "serotonin": 176.2,
     "tryptophan": 204.2,
-    "xanthurenic acid": 205.2
+    "xanthurenic acid": 205.2,
+    "melatonin": 232.28
 }
