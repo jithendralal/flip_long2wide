@@ -27,8 +27,8 @@ class DataFile:
                 if i == 6:  # this is the header row (7th)
                     col_count = len(row)  # no of actual columns in TXT
                     
-                    for i in range(col_count-1):
-                        top_rows[0].append(f"Dummy{i}")  # a dummy header row
+                    for col in range(col_count-1):
+                        top_rows[0].append(f"Dummy{col}")  # a dummy header row
                     
                     for j in range(1, 6):  # make the number of columns same for first 6 rows
                         top_row = top_rows[j]
