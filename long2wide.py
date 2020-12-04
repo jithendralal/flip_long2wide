@@ -153,7 +153,7 @@ class Application(tk.Frame):
     def extra_process_waters(self, df_quantity):
         if self.unit_conc.get():
             for col in df_quantity.columns.to_list():
-                mol_weight = mol_weights[col]
+                mol_weight = mol_weights[col.lower()]
                 df_quantity[col] = df_quantity[col].apply(unit_conc, args=(mol_weight,))
         return df_quantity
 
@@ -161,7 +161,6 @@ class Application(tk.Frame):
         analysis_type = self.analysis_type.get()
         if analysis_type =='Tryptophan':
             headers = df.loc[5].values.flatten().tolist()  # get the 5th row as headers
-            
             headers[0] = 'analyte_name'
             headers[1] = 'hash'
             df.columns = headers
