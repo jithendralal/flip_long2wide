@@ -141,8 +141,7 @@ class Application(tk.Frame):
             try:
                 df = df[BRUKER_VARIABLES]
             except Exception:
-                self.process_message.configure(text=f"Wrong parameters selected. Please check your selections.", fg="red")
-                return
+                return 'wrong parameters'
             df['quantity_units'] = pd.to_numeric(df['quantity_units'], errors='coerce')
             df_area = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='area_of_pi')  # , aggfunc=np.mean)
             df_quantity = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='quantity_units')  # , aggfunc=np.mean)
@@ -160,30 +159,33 @@ class Application(tk.Frame):
     def process_waters(self, df):
         analysis_type = self.analysis_type.get()
         if analysis_type =='Tryptophan':
-            headers = df.loc[5].values.flatten().tolist()  # get the 5th row as headers
-            headers[0] = 'analyte_name'
-            headers[1] = 'hash'
-            df.columns = headers
-            df = janitor.clean_names(df, remove_special=True, case_type='snake')
-            headers = df.columns.to_list()
-            headers = [x.strip('_') for x in headers]  # remove leading and trailing '_' in variables
-            df.columns = headers
+            try:
+                headers = df.loc[5].values.flatten().tolist()  # get the 5th row as headers
+                headers[0] = 'analyte_name'
+                headers[1] = 'hash'
+                df.columns = headers
+                df = janitor.clean_names(df, remove_special=True, case_type='snake')
+                headers = df.columns.to_list()
+                headers = [x.strip('_') for x in headers]  # remove leading and trailing '_' in variables
+                df.columns = headers
 
-            df.dropna(subset=['analyte_name'], inplace=True)  # drop empty rows 
-            df.reset_index(drop=True, inplace=True)  # reindex after dropping rows
+                df.dropna(subset=['analyte_name'], inplace=True)  # drop empty rows 
+                df.reset_index(drop=True, inplace=True)  # reindex after dropping rows
 
-            df = self.fill_analyte_name(df)  # Compound: tryptophan occurs only once, fill it in rows below it
-            df = df[WATERS_VARIABLES]
-            df['conc'] = pd.to_numeric(df['conc'], errors='coerce')
-            df["area"] = pd.to_numeric(df["area"], errors='coerce')
-            df["rt"] = pd.to_numeric(df["rt"], errors='coerce')
-            df_area = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='area')  # , fill_value=0)  # , aggfunc=np.mean)
-            df_quantity = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='conc')  # , fill_value=0)  # , aggfunc=np.mean)
-            df_rt = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='rt')  # , fill_value=0)  # , aggfunc=np.mean)
+                df = self.fill_analyte_name(df)  # Compound: tryptophan occurs only once, fill it in rows below it
+                df = df[WATERS_VARIABLES]
+                df['conc'] = pd.to_numeric(df['conc'], errors='coerce')
+                df["area"] = pd.to_numeric(df["area"], errors='coerce')
+                df["rt"] = pd.to_numeric(df["rt"], errors='coerce')
+                df_area = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='area')  # , fill_value=0)  # , aggfunc=np.mean)
+                df_quantity = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='conc')  # , fill_value=0)  # , aggfunc=np.mean)
+                df_rt = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='rt')  # , fill_value=0)  # , aggfunc=np.mean)
 
-            df_quantity = self.extra_process_waters(df_quantity)
+                df_quantity = self.extra_process_waters(df_quantity)
 
-            return df_area, df_quantity, df_rt
+                return df_area, df_quantity, df_rt
+            except Exception:
+                return 'wrong parameters'
 
     def get_file_type(self):
         ret = 'TXT'
@@ -210,7 +212,7 @@ class Application(tk.Frame):
             return
 
         file_type = self.get_file_type()
-        files = get_files(current_dir, "."+file_type)
+        files = get_files(current_dir, "." + file_type)
 
         sheet_name1 = 'Area'
         sheet_name2 = 'Conc'
@@ -229,13 +231,13 @@ class Application(tk.Frame):
                     df = data_file.read(file, file_type)
                     if machine_type == 'Bruker':
                         ret = self.process_bruker(df)
-                        if not ret:
-                            return
+                        if ret == 'wrong parameters':
+                            return 'wrong parameters'
                         df_area, df_quantity, df_rt = ret[0], ret[1], ret[2]
                     else:
                         ret = self.process_waters(df)
-                        if not ret:
-                            return
+                        if ret == 'wrong parameters':
+                            return 'wrong parameters'
                         df_area, df_quantity, df_rt = ret[0], ret[1], ret[2]
 
                     out_filename = f"{file}_{timestamp}_flipped.xlsx"
@@ -245,13 +247,19 @@ class Application(tk.Frame):
                         df_quantity.to_excel(writer, sheet_name2)
                         df_rt.to_excel(writer, sheet_name3)
                         writer.save()
-        return True
+        else:
+            return 'not found'
+        return 'completed'
 
     def long_to_wide(self):
         self.selected_cwd = True
         result = self.process_files()
-        if result:
+        if result == 'completed':
             self.process_message.configure(text=f"Completed.", fg="#006600", bg="#ddd")
+        elif result == 'not found':
+            self.process_message.configure(text=f"Files of selected type not found. Please check your selections.", fg="#ff0000", bg="#ddd")
+        elif result == 'wrong parameters':
+            self.process_message.configure(text=f"Please check your selections / file structure.", fg="#ff0000", bg="#ddd")
 
     def select_cwd(self):
         old = self.config["cwd"]
