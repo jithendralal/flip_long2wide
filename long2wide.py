@@ -252,6 +252,7 @@ class Application(tk.Frame):
         return 'completed'
 
     def long_to_wide(self):
+        self.process_message.configure(text=f"Processing...", fg="#000066", bg="#ddd")
         self.selected_cwd = True
         result = self.process_files()
         if result == 'completed':
