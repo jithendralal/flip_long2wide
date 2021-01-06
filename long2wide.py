@@ -188,11 +188,11 @@ class Application(tk.Frame):
                 return 'wrong parameters'
 
     def get_file_type(self):
-        ret = 'TXT'
+        file_type = 'TXT'
         if self.machine_type.get() == 'Bruker':
-            ret = 'xlsx'
-        return ret
-    
+            file_type = 'xlsx'
+        return file_type
+
     def get_analysis_type(self):
         return self.analysis_type.get()
 
@@ -230,14 +230,14 @@ class Application(tk.Frame):
                 if '_flipped' not in file:
                     df = data_file.read(file, file_type)
                     if machine_type == 'Bruker':
-                        ret = self.process_bruker(df)
-                        if ret == 'wrong parameters':
-                            return 'wrong parameters'
+                        result = self.process_bruker(df)
+                        if result == 'wrong parameters':
+                            return result
                         df_area, df_quantity, df_rt = ret[0], ret[1], ret[2]
                     else:
-                        ret = self.process_waters(df)
-                        if ret == 'wrong parameters':
-                            return 'wrong parameters'
+                        result = self.process_waters(df)
+                        if result == 'wrong parameters':
+                            return result
                         df_area, df_quantity, df_rt = ret[0], ret[1], ret[2]
 
                     out_filename = f"{file}_{timestamp}_flipped.xlsx"
