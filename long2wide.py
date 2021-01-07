@@ -94,7 +94,7 @@ class Application(tk.Frame):
             self.toggle_unit_conc(False)
 
     def set_selections_text(self):
-        self.process_message.configure(text=f" ", fg="#000")
+        self.status_message.configure(text=f" ", fg="#000")
         machine = self.machine_type.get()
         if machine == 'Waters':
             self.show_waters_analysis_types()
@@ -205,10 +205,10 @@ class Application(tk.Frame):
         machine_type = self.machine_type.get()
         analysis_type = self.analysis_type.get()
         if analysis_type == ' ':
-            self.process_message.configure(text=f"Analysis type not selected.", fg="red")
+            self.status_message.configure(text=f"Analysis type not selected.", fg="red")
             return
         if (machine_type, analysis_type) not in IMPLEMENTED:
-            self.process_message.configure(text=f"{machine_type}-{analysis_type} not implemented.", fg="red")
+            self.status_message.configure(text=f"{machine_type}-{analysis_type} not implemented.", fg="red")
             return
 
         file_type = self.get_file_type()
@@ -233,12 +233,12 @@ class Application(tk.Frame):
                         result = self.process_bruker(df)
                         if result == 'wrong parameters':
                             return result
-                        df_area, df_quantity, df_rt = ret[0], ret[1], ret[2]
+                        df_area, df_quantity, df_rt = result[0], result[1], result[2]
                     else:
                         result = self.process_waters(df)
                         if result == 'wrong parameters':
                             return result
-                        df_area, df_quantity, df_rt = ret[0], ret[1], ret[2]
+                        df_area, df_quantity, df_rt = result[0], result[1], result[2]
 
                     out_filename = f"{file}_{timestamp}_flipped.xlsx"
                     output_path = os.path.join(current_dir, out_filename)
@@ -252,15 +252,15 @@ class Application(tk.Frame):
         return 'completed'
 
     def long_to_wide(self):
-        self.process_message.configure(text=f"Processing...", fg="#000066", bg="#ddd")
+        self.status_message.configure(text=f"Processing...", fg="#000066", bg="#ddd")
         self.selected_cwd = True
         result = self.process_files()
         if result == 'completed':
-            self.process_message.configure(text=f"Completed.", fg="#006600", bg="#ddd")
+            self.status_message.configure(text=f"Completed.", fg="#006600", bg="#ddd")
         elif result == 'not found':
-            self.process_message.configure(text=f"Files of selected type not found. Please check your selections.", fg="#ff0000", bg="#ddd")
+            self.status_message.configure(text=f"Files of selected type not found. Please check your selections.", fg="#ff0000", bg="#ddd")
         elif result == 'wrong parameters':
-            self.process_message.configure(text=f"Please check your selections / file structure.", fg="#ff0000", bg="#ddd")
+            self.status_message.configure(text=f"Please check your selections / file structure.", fg="#ff0000", bg="#ddd")
 
     def select_cwd(self):
         old = self.config["cwd"]
@@ -269,14 +269,14 @@ class Application(tk.Frame):
         if new:
             set_config("cwd", new)
             self.config["cwd"] = new
-            self.process_message.configure(text="New folder selected")
+            self.status_message.configure(text="New folder selected")
             if old != new:
                 self.dir_lf.configure(text="", fg="#000")
             else:
                 self.dir_lf.configure(text="", fg="#000")
         elif old:
             self.dir_lf.configure(text="", fg="#000")
-            self.process_message.configure(text=f"Selected same folder: {old}")
+            self.status_message.configure(text=f"Selected same folder: {old}")
         for w in self.machine_lf.winfo_children():
             w.configure(state=tk.NORMAL)
         self.process_button.configure(state=tk.NORMAL)
@@ -321,15 +321,15 @@ class Application(tk.Frame):
         self.selections_analysis_text.pack(side=tk.TOP, padx=2, pady=1, fill=tk.BOTH, expand=1)
 
     def add_process_controls(self):
-        process_lf = tk.LabelFrame(self.master, text="", padx=2, pady=2, relief=tk.FLAT, bg="#b3cccc")
-        process_lf.pack(side=tk.BOTTOM, padx=0, pady=0, fill=tk.X)
+        status_bar = tk.LabelFrame(self.master, text="", padx=2, pady=2, relief=tk.FLAT, bg="#b3cccc")
+        status_bar.pack(side=tk.BOTTOM, padx=0, pady=0, fill=tk.X)
 
-        self.process_button = tk.Button(process_lf, text="Flip", activebackground='palegreen', width=20,
+        self.process_button = tk.Button(status_bar, text="Flip", activebackground='palegreen', width=20,
                                         command=self.long_to_wide, state=tk.DISABLED, font=("Arial", 12))
         self.process_button.pack(side=tk.TOP, padx=2, pady=(0, 20))
 
-        self.process_message = tk.Label(process_lf, fg="green", bg="#ddd", font=("Arial", 10))
-        self.process_message.pack(side=tk.BOTTOM, padx=0, pady=0, fill=tk.X)
+        self.status_message = tk.Label(status_bar, fg="green", bg="#ddd", font=("Arial", 10))
+        self.status_message.pack(side=tk.BOTTOM, padx=0, pady=0, fill=tk.X)
 
     def add_help(self):
         help_lf = tk.LabelFrame(self.cwd_lf, text="", padx=2, pady=2, relief=tk.FLAT, bg="#ccc")
@@ -469,7 +469,7 @@ class Application(tk.Frame):
         self.menubar.add_cascade(label="File", menu=filemenu)
 
         self.add_options_bar()
-        self.process_message.configure(text=f"Last used folder: {self.config['cwd']}", fg="#666")
+        self.status_message.configure(text=f"Last used folder: {self.config['cwd']}", fg="#666")
 
         self.change_color()
         self.master.bind('<Escape>', self.close)
