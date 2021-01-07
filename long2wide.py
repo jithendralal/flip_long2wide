@@ -206,10 +206,14 @@ class Application(tk.Frame):
         machine_type = self.machine_type.get()
         analysis_type = self.analysis_type.get()
         if analysis_type == ' ':
-            self.status_message.configure(text=f"Analysis type not selected.", fg="red")
+            message = f"Analysis type not selected."
+            self.status_message.configure(text=message, fg="red")
+            self.show_messagebox("Error", message)
             return
         if (machine_type, analysis_type) not in IMPLEMENTED:
-            self.status_message.configure(text=f"{machine_type}-{analysis_type} not implemented.", fg="red")
+            message = f"{machine_type}-{analysis_type} not implemented."
+            self.status_message.configure(text=message, fg="red")
+            self.show_messagebox("Error", message)
             return
 
         file_type = self.get_file_type()
@@ -267,7 +271,7 @@ class Application(tk.Frame):
             self.messagebox.deiconify()
             self.messagebox.wm_title(title)
             self.messagebox.title(title)
-            self.messagebox_label.text = message
+            self.messagebox_label.configure(text=message)
 
     def long_to_wide(self):
         self.status_message.configure(text=f"Processing...", fg="#000066", bg="#ddd")
