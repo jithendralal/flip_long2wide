@@ -257,21 +257,24 @@ class Application(tk.Frame):
         return 'completed'
 
     def show_messagebox(self, title, message):
-        if not self.messagebox:
-            self.messagebox = tk.Toplevel(self)
-            self.messagebox.wm_title(title)
-            self.messagebox.title(title)
-            self.messagebox_label = tk.Label(self.messagebox, text=message)
-            self.messagebox_label.pack(padx=5, pady=5)
-            self.messagebox_button = tk.Button(self.messagebox, text="OK", command=lambda: self.messagebox.withdraw())
-            self.messagebox_button.pack(padx=5, pady=10)
-            self.messagebox.wm_protocol("WM_DELETE_WINDOW", lambda: self.on_delete_child(self.messagebox))
-        else:
-            self.messagebox.attributes('-topmost', 'true')
-            self.messagebox.deiconify()
-            self.messagebox.wm_title(title)
-            self.messagebox.title(title)
-            self.messagebox_label.configure(text=message)
+        if self.messagebox:
+            try:
+                self.messagebox.attributes('-topmost', 'true')
+                self.messagebox.deiconify()
+                self.messagebox.wm_title(title)
+                self.messagebox.title(title)
+                self.messagebox_label.configure(text=message)
+                return
+            except Exception:
+                pass
+        self.messagebox = tk.Toplevel(self)
+        self.messagebox.wm_title(title)
+        self.messagebox.title(title)
+        self.messagebox_label = tk.Label(self.messagebox, text=message)
+        self.messagebox_label.pack(padx=5, pady=5)
+        self.messagebox_button = tk.Button(self.messagebox, text="OK", command=lambda: self.messagebox.withdraw())
+        self.messagebox_button.pack(padx=5, pady=10)
+        self.messagebox.wm_protocol("WM_DELETE_WINDOW", lambda: self.on_delete_child(self.messagebox))
 
     def long_to_wide(self):
         self.status_message.configure(text=f"Processing...", fg="#000066", bg="#ddd")
