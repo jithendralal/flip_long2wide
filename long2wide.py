@@ -16,6 +16,32 @@ IMPLEMENTED = [
     ('Waters', 'Tryptophan'),
 ]
 
+class CustomDialog:
+    def __init__(self, master):
+        self.dialog = tk.Toplevel(master)
+        self.dialog_label = tk.Label(self.dialog, text="Grrr! Something's wrong.")
+        self.dialog_label.pack(padx=15, pady=15)
+        self.dialog_button = tk.Button(self.dialog, text="OK", command=lambda: self.dialog.withdraw())
+        self.dialog_button.pack(padx=15, pady=20)
+        self.dialog.wm_protocol("WM_DELETE_WINDOW", lambda: master.on_delete_child(self.dialog))
+
+    def _set_label(self, message, bg):
+        self.dialog_label.configure(text=f"\n{message}\n", bg=bg)
+
+    def error(self, message, title="Error"):
+        self.dialog.wm_title(title)
+        self.dialog.title(title)
+        self._set_label(message, 'pink')
+
+    def success(self, message, title="Success"):
+        self.dialog.wm_title(title)
+        self.dialog.title(title)
+        self._set_label(message, 'palegreen')
+
+    def bring_to_top(self):
+        self.dialog.attributes('-topmost', 'true')
+        self.dialog.deiconify()
+
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -208,12 +234,12 @@ class Application(tk.Frame):
         if analysis_type == ' ':
             message = f"Analysis type not selected."
             self.status_message.configure(text=message, fg="red")
-            self.show_messagebox("Error", message)
+            self.show_messagebox(message, message_type="error")
             return
         if (machine_type, analysis_type) not in IMPLEMENTED:
             message = f"{machine_type}-{analysis_type} not implemented."
             self.status_message.configure(text=message, fg="red")
-            self.show_messagebox("Error", message)
+            self.show_messagebox(message, message_type="error")
             return
 
         file_type = self.get_file_type()
@@ -256,25 +282,20 @@ class Application(tk.Frame):
             return 'not found'
         return 'completed'
 
-    def show_messagebox(self, title, message):
+    def show_messagebox(self, message, message_type="error"):
         if self.messagebox:
             try:
-                self.messagebox.attributes('-topmost', 'true')
-                self.messagebox.deiconify()
-                self.messagebox.wm_title(title)
-                self.messagebox.title(title)
-                self.messagebox_label.configure(text=message)
-                return
+                self.messagebox.bring_to_top()
             except Exception:
-                pass
-        self.messagebox = tk.Toplevel(self)
-        self.messagebox.wm_title(title)
-        self.messagebox.title(title)
-        self.messagebox_label = tk.Label(self.messagebox, text=message)
-        self.messagebox_label.pack(padx=5, pady=5)
-        self.messagebox_button = tk.Button(self.messagebox, text="OK", command=lambda: self.messagebox.withdraw())
-        self.messagebox_button.pack(padx=5, pady=10)
-        self.messagebox.wm_protocol("WM_DELETE_WINDOW", lambda: self.on_delete_child(self.messagebox))
+                self.messagebox = None
+        if not self.messagebox:
+            self.messagebox = CustomDialog(self)
+
+        if message_type == "error":
+            self.messagebox.error(message)
+        else:
+            self.messagebox.success(message)
+        return
 
     def long_to_wide(self):
         self.status_message.configure(text=f"Processing...", fg="#000066", bg="#ddd")
@@ -282,19 +303,19 @@ class Application(tk.Frame):
         result = self.process_files()
         if result == 'completed':
             message1 = f"Completed processing."
-            message2 = f"\n Please check the folder: {self.config['cwd']}"
+            message2 = f"\n\nPlease check the folder:\n{self.config['cwd']}"
             self.status_message.configure(text=message1, fg="#006600", bg="#ddd")
-            self.show_messagebox("Success", message1 + message2)
+            self.show_messagebox(message1 + message2, message_type="success")
         elif result == 'not found':
             message1 = f"Files of type .{self.get_file_type()} not found in the directory"
             message2 = f"\n{self.config['cwd']}\nPlease select correct options"
             self.status_message.configure(text=message1, fg="#ff0000", bg="#ddd")
-            self.show_messagebox("Error", message1 + message2)
+            self.show_messagebox(message1 + message2, message_type="error")
         elif result == 'wrong parameters':
             message1 = f"Please check your selections / file structure."
             message2 = f"\nLook for missing columns, if you have modified the exported file."
             self.status_message.configure(text=message1, fg="#ff0000", bg="#ddd")
-            self.show_messagebox("Error", message1 + message2)
+            self.show_messagebox(message1 + message2, message_type="error")
 
     def select_cwd(self):
         old = self.config["cwd"]
