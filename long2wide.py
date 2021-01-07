@@ -29,6 +29,7 @@ class Application(tk.Frame):
         self.create_widgets()
         self.df = pd.DataFrame()
         self.config_window = False
+        self.messagebox = None
 
     def load_config(self):
         self.config = get_config()
@@ -251,16 +252,42 @@ class Application(tk.Frame):
             return 'not found'
         return 'completed'
 
+    def show_messagebox(self, title, message):
+        if not self.messagebox:
+            self.messagebox = tk.Toplevel(self)
+            self.messagebox.wm_title(title)
+            self.messagebox.title(title)
+            self.messagebox_label = tk.Label(self.messagebox, text=message)
+            self.messagebox_label.pack(padx=5, pady=5)
+            self.messagebox_button = tk.Button(self.messagebox, text="OK", command=lambda: self.messagebox.withdraw())
+            self.messagebox_button.pack(padx=5, pady=10)
+            self.messagebox.wm_protocol("WM_DELETE_WINDOW", lambda: self.on_delete_child(self.messagebox))
+        else:
+            self.messagebox.attributes('-topmost', 'true')
+            self.messagebox.deiconify()
+            self.messagebox.wm_title(title)
+            self.messagebox.title(title)
+            self.messagebox_label.text = message
+
     def long_to_wide(self):
         self.status_message.configure(text=f"Processing...", fg="#000066", bg="#ddd")
         self.selected_cwd = True
         result = self.process_files()
         if result == 'completed':
-            self.status_message.configure(text=f"Completed.", fg="#006600", bg="#ddd")
+            message1 = f"Completed processing."
+            message2 = f"\n Please check the folder: {self.config['cwd']}"
+            self.status_message.configure(text=message1, fg="#006600", bg="#ddd")
+            self.show_messagebox("Success", message1 + message2)
         elif result == 'not found':
-            self.status_message.configure(text=f"Files of selected type not found. Please check your selections.", fg="#ff0000", bg="#ddd")
+            message1 = f"Files of type .{self.get_file_type()} not found in the directory"
+            message2 = f"\n{self.config['cwd']}\nPlease select correct options"
+            self.status_message.configure(text=message1, fg="#ff0000", bg="#ddd")
+            self.show_messagebox("Error", message1 + message2)
         elif result == 'wrong parameters':
-            self.status_message.configure(text=f"Please check your selections / file structure.", fg="#ff0000", bg="#ddd")
+            message1 = f"Please check your selections / file structure."
+            message2 = f"\nLook for missing columns, if you have modified the exported file."
+            self.status_message.configure(text=message1, fg="#ff0000", bg="#ddd")
+            self.show_messagebox("Error", message1 + message2)
 
     def select_cwd(self):
         old = self.config["cwd"]
@@ -440,7 +467,7 @@ class Application(tk.Frame):
             help_text = "".join(mol_list)
             ctext.insert("end", help_text)
         else:
-            self.raise_above_all(self.config_window)
+            tk.raise_above_all(self.config_window)
 
     def close(self, event):
         self.exit()
