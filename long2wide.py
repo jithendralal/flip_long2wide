@@ -9,6 +9,7 @@ from tkinter import scrolledtext
 from mol_weights import *
 from utils import *
 from models import DataFile
+from PIL import Image
 
 
 IMPLEMENTED = [
@@ -19,10 +20,12 @@ IMPLEMENTED = [
 class CustomDialog:
     def __init__(self, master):
         self.dialog = tk.Toplevel(master)
+        self.dialog_image = tk.Label(self.dialog)
+        self.dialog_image.pack(padx=(10,10), pady=2, side=tk.LEFT)
         self.dialog_label = tk.Label(self.dialog, text="Grrr! Something's wrong.")
-        self.dialog_label.pack(padx=15, pady=15)
+        self.dialog_label.pack(padx=(10,15), pady=15, side=tk.LEFT)
         self.dialog_button = tk.Button(self.dialog, text="OK", command=lambda: self.dialog.withdraw())
-        self.dialog_button.pack(padx=15, pady=20)
+        self.dialog_button.pack(padx=5, pady=5, side=tk.BOTTOM)
         self.dialog.wm_protocol("WM_DELETE_WINDOW", lambda: master.on_delete_child(self.dialog))
 
     def _set_label(self, message, bg):
@@ -31,12 +34,23 @@ class CustomDialog:
     def error(self, message, title="Error"):
         self.dialog.wm_title(title)
         self.dialog.title(title)
-        self._set_label(message, 'pink')
+        img = tk.PhotoImage(file="error_icon.png")
+        self.dialog_image.configure(image=img, bg="#ffe8f5")
+        self.dialog_image.photo = img
+        self._set_label(message, '#ffe8f5')
+        self.dialog.configure(bg="#ffe8f5")
 
     def success(self, message, title="Success"):
         self.dialog.wm_title(title)
         self.dialog.title(title)
-        self._set_label(message, 'palegreen')
+        #im_temp = Image.open("success.png")
+        #im_temp = im_temp.resize((35, 35), Image.ANTIALIAS)
+        #im_temp.save("success_icon.png", "png")
+        img = tk.PhotoImage(file="success_icon.png")
+        self.dialog_image.configure(image=img, bg="#eeffdd")
+        self.dialog_image.photo = img
+        self._set_label(message, '#eeffdd')
+        self.dialog.configure(bg="#eeffdd")
 
     def bring_to_top(self):
         self.dialog.attributes('-topmost', 'true')
