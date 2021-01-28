@@ -214,10 +214,13 @@ class Application(tk.Frame):
                 df.reset_index(drop=True, inplace=True)  # reindex after dropping rows
 
                 df = self.fill_analyte_name(df)  # Compound: tryptophan occurs only once, fill it in rows below it
-                df = df[WATERS_VARIABLES]
+
+                df = df[WATERS_VARIABLES]  # ---------Note: for any new columns update this in utils and use it below--
                 df['conc'] = pd.to_numeric(df['conc'], errors='coerce')
                 df["area"] = pd.to_numeric(df["area"], errors='coerce')
                 df["rt"] = pd.to_numeric(df["rt"], errors='coerce')
+
+                # ---------Note: for any new columns update WATERS_VARIABLES and use it below------
                 df_area = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='area')  # , fill_value=0)  # , aggfunc=np.mean)
                 df_quantity = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='conc')  # , fill_value=0)  # , aggfunc=np.mean)
                 df_rt = df.pivot_table(index=['sample_text', 'type'], columns='analyte_name', values='rt')  # , fill_value=0)  # , aggfunc=np.mean)
