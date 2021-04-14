@@ -10,7 +10,7 @@ from mol_weights import *
 from utils import *
 from models import DataFile
 from PIL import Image
-
+from PIL.ImageTk import PhotoImage
 
 IMPLEMENTED = [
     ('Bruker', 'Amino Acids'),
@@ -550,6 +550,8 @@ class Application(tk.Frame):
 
 
 root = tk.Tk()
+img = PhotoImage(file='icon.ico')
+root.tk.call('wm', 'iconphoto', root._w, img)
 app = Application(root)
 root.geometry("900x600")
 root.configure(background='#b3cccc')
