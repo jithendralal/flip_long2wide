@@ -248,6 +248,7 @@ def get_mol_mass(missing_compound):
     print(missing_compound)
     url_open(get_search_url(missing_compound.replace('_', ' ')))
 
+
 SEARCH_URL = "https://google.com.au/search?q=molar mass of "
 
 IMPLEMENTED = [
@@ -271,6 +272,7 @@ uploads_dir = get_uploads_dir()
 double_conc = False
 unit_conc = False
 unit_conc_micro = False
+
 
 def main():
     long_to_wide()
