@@ -260,7 +260,8 @@ COMPOUNDS_FILE = "compounds.json"
 missing_compound = ""
 missing_compound_mass = ""
 
-analysis_type = IMPLEMENTED[0]
+analysis_type = ""
+
 df = pd.DataFrame()
 compounds = load_compounds()
 
@@ -271,7 +272,9 @@ unit_conc = False
 unit_conc_micro = False
 
 
-def main():
+def main(anal_type):
+    global analysis_type
+    analysis_type = anal_type
     return long_to_wide()
 
 
