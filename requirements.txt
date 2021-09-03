@@ -196,7 +196,7 @@ sphinxcontrib-serializinghtml==1.1.5
 spyder==5.0.3
 spyder-kernels==2.0.3
 ssh-import-id==5.10
-systemd-python==234
+# systemd-python==234
 terminado==0.9.1
 testpath==0.4.4
 text-unidecode==1.3
