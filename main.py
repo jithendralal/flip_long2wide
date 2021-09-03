@@ -42,18 +42,19 @@ def fill_analyte_name(df):
 
 
 def double_quantity_bruker(df_quantity):
-    if double_conc.get():
+    if double_conc:
         for col in df_quantity.columns.to_list():
             df_quantity[col] = df_quantity[col].apply(double_it)
     return df_quantity
 
 
 def process_bruker(df):
-    if analysis_type == 'Amino Acids':
+    if analysis_type == 'Bruker Amino Acids':
         df = janitor.clean_names(df, remove_special=True, case_type='snake')
         try:
             df = df[BRUKER_VARIABLES]
         except Exception as e:
+            print("wrong parameters")
             return 'wrong parameters', str(e)
         df['quantity_units'] = pd.to_numeric(df['quantity_units'], errors='coerce')
         df_area = df.pivot_table(index=['data_set', 'sample_type'], columns='analyte_name', values='area_of_pi')
@@ -66,12 +67,12 @@ def process_bruker(df):
 
 def unit_conversion_waters(df_quantity):
     try:
-        if unit_conc.get():
+        if unit_conc:
             for col in df_quantity.columns.to_list():
                 if col != "Sample ID":
                     mol_weight = compounds[col.lower()]
                     df_quantity[col] = df_quantity[col].apply(unit_conc, args=(mol_weight,))
-        if unit_conc_micro.get():
+        if unit_conc_micro:
             for col in df_quantity.columns.to_list():
                 if col != "Sample ID":
                     mol_weight = compounds[col.lower()]
@@ -151,13 +152,6 @@ def group_conc_waters(df):
 
 
 def process_files():
-    if analysis_type == ' ':
-        print("Analysis type not selected.")
-        return
-    if analysis_type not in IMPLEMENTED:
-        print(f"{analysis_type} not implemented.")
-        return
-
     file_type = get_file_type(analysis_type)
     files = get_files(uploads_dir, "." + file_type)
 
@@ -183,7 +177,7 @@ def process_files():
                     if isinstance(result[0], str) and result[0] == 'wrong parameters':
                         return result
                     df_area, df_quantity, df_rt = result[0], result[1], result[2]
-                elif analysis_type == 'WConversion':
+                elif analysis_type == 'Waters Conversion':
                     result = process_conversion(df)
                     if isinstance(result[0], str) and (result[0] == 'missing compound' or
                                                        result[0] == 'wrong parameters'):
@@ -219,10 +213,10 @@ def long_to_wide():
     result = process_files()
     if result == 'completed':
         print(f"Completed processing.")
-        print(f"\n\nPlease check the folder:\n{config['cwd']}")
+        print(f"\n\nPlease check the uploads folder")
     elif result == 'not found':
-        print(f"Files of type .{get_file_type()} not found in the directory")
-        print(f"\n{config['cwd']}\nPlease select correct options")
+        print(f"Files of type .{get_file_type()} not found in the uploads directory")
+        print(f"Please select correct options")
     elif isinstance(result[0], str) and result[0] == 'wrong parameters':
         print(f"Please check your selections / file structure.")
         print(f"\nLook for missing columns, if you have modified the exported file.")
@@ -232,18 +226,15 @@ def long_to_wide():
 
 
 def validate_mass():
-    missing_compound_mass = missing_compound_mass.get()
     if missing_compound_mass and missing_compound_mass.isnumeric() and float(missing_compound_mass) > 0:
-        hide_data_lf()
         add_compound()
         long_to_wide()
-        process_button.configure(state=tk.NORMAL)
     else:
-        missing_compound_mass.set("")
+        missing_compound_mass = ""
 
 
 def add_compound():
-    compounds[missing_compound.get()] = float(missing_compound_mass.get())
+    compounds[missing_compound] = float(missing_compound_mass)
     with open(COMPOUNDS_FILE, "w+") as f:
         json.dump(compounds, f, indent=4)
     return
@@ -254,7 +245,7 @@ def get_search_url(missing_compound):
 
 
 def get_mol_mass(missing_compound):
-    show_data_lf(missing_compound)
+    print(missing_compound)
     url_open(get_search_url(missing_compound.replace('_', ' ')))
 
 SEARCH_URL = "https://google.com.au/search?q=molar mass of "
@@ -276,6 +267,10 @@ df = pd.DataFrame()
 compounds = load_compounds()
 
 uploads_dir = get_uploads_dir()
+
+double_conc = False
+unit_conc = False
+unit_conc_micro = False
 
 def main():
     long_to_wide()
