@@ -210,7 +210,7 @@ toml==0.10.2
 tornado==6.0.4
 traitlets==5.0.4
 Twisted==21.2.0
-ubuntu-advantage-tools==27.2
+# ubuntu-advantage-tools==27.2
 ubuntu-drivers-common==0.0.0
 ufw==0.36
 ujson==4.0.2
