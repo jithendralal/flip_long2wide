@@ -16,8 +16,12 @@ def analysis_types():
     )
 
 
-def show_message(text, kind):
+def show_message(text, kind, anal=""):
     if kind == "success":
-        return widgets.HTML(value=f"<h3><font color='green'>{text}</h3>")
+        return widgets.HTML(value=f"<h3><font color='green'>{anal}<br>{text}</h3>")
     else:
-        return widgets.HTML(value=f"<h3><font color='red'>{text}</h3>")
+        return widgets.HTML(value=f"<h3><font color='red'>{anal}<br>{text}</h3>")
+
+
+def show_processing_message(text):
+    return widgets.HTML(value=f"<h3><font color='blue'>{text}<br>Processing...</h3>")
