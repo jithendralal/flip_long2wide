@@ -3,12 +3,6 @@ import os
 from pathlib import Path
 from tkinter import filedialog
 
-
-CONFIG_FILENAME = "config.json"
-CONFIG_PATH = os.getcwd()
-CONFIG_FILE = os.path.join(CONFIG_PATH, CONFIG_FILENAME)
-
-
 BRUKER_VARIABLES = [
     'quantity_units', 
     'analyte_name', 
@@ -19,7 +13,6 @@ BRUKER_VARIABLES = [
     'area_of_pi'
 ]
 
-
 WATERS_VARIABLES = [
     'conc', 
     'analyte_name', 
@@ -28,7 +21,6 @@ WATERS_VARIABLES = [
     'rt',
     'area'
 ]
-
 
 WATERS_HELP_VARIABLES = [
     'conc', 
@@ -53,32 +45,8 @@ def get_files(dir_name, file_type):
     return all_files
 
 
-def open_dir(current_dir):
-    return filedialog.askdirectory(initialdir=current_dir, title="Please select a directory")
-
-
 def get_home():
     return str(Path.home())
-
-
-def get_config():
-    config_json = None
-    if os.path.isfile(CONFIG_FILE):
-        with open(CONFIG_FILE) as f:
-            config_json = json.load(f)
-    else:
-        with open(CONFIG_FILE, "w+") as f:
-            config_json = {"cwd": get_home()}
-            json.dump(config_json, f, indent=4)
-    return config_json
-
-
-def set_config(key, value):
-    with open(CONFIG_FILE) as f:
-        config = json.load(f)
-    with open(CONFIG_FILE, "w") as f:
-        config[key] = value
-        json.dump(config, f, indent=4)
 
 
 def double_it(x):
