@@ -1,9 +1,7 @@
-# used for unit conversion of concentration
-# divide concentration by the molecular weight for each analyte
-mol_weights = {
-    'glyoxylic acid': 74.0,
-    'hexanoic acid': 116.15,
-    'isobutyruc acid': 88.11,
+{
+    "glyoxylic acid": 74.0,
+    "hexanoic acid": 116.15,
+    "isobutyruc acid": 88.11,
     "3-hydroxyanthranilic acid": 153.1,
     "3-hydroxykynurenine": 224.2,
     "5-hydroxyindole acetic acid": 191.2,
@@ -41,7 +39,7 @@ mol_weights = {
     "xanthurenic acid": 205.2,
     "ca-cholic acid": 408.6,
     "ca-d4": 496.7,
-    'cdca-chenodeoxycholic acid': 392.5,
+    "cdca-chenodeoxycholic acid": 392.5,
     "cada-d4": 396.6,
     "cdca-d4": 396.6,
     "dca-d4": 396.6,

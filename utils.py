@@ -88,3 +88,8 @@ def double_it(x):
 def unit_conc(x, mol_weight):
     # divide concentration by the molecular weight for each analyte
     return x / mol_weight
+
+
+def unit_conc_micro(x, mol_weight):
+    # divide concentration by the molecular weight for each analyte
+    return x / mol_weight / 1000.0
