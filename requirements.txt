@@ -161,7 +161,7 @@ pyxdg==0.26
 PyYAML==5.3.1
 pyzmq==19.0.2
 QDarkStyle==3.0.2
-qrtools==2.0
+# qrtools==2.0
 qstylizer==0.2.0
 QtAwesome==1.0.2
 qtconsole==4.7.7
