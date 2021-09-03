@@ -212,16 +212,13 @@ def process_files():
 def long_to_wide():
     result = process_files()
     if result == 'completed':
-        print(f"Completed processing.")
-        print(f"\n\nPlease check the uploads folder")
+        return(f"Completed processing.\nPlease check the uploads folder", "success")
     elif result == 'not found':
-        print(f"Files of type .{get_file_type()} not found in the uploads directory")
-        print(f"Please select correct options")
+        return(f"Files of type .{get_file_type()} not found in the uploads directory", "error")
     elif isinstance(result[0], str) and result[0] == 'wrong parameters':
-        print(f"Please check your selections / file structure.")
-        print(f"\nLook for missing columns, if you have modified the exported file.")
+        return(f"Please check your selections / file structure.\nLook for missing columns, if you have modified the exported file.", "error")
     elif isinstance(result[0], str) and result[0] == 'missing compound':
-        print(f"Missing compound: {result[1]}")
+        return(f"Missing compound: {result[1]}", "error")
         get_mol_mass(result[1])
 
 
@@ -275,7 +272,7 @@ unit_conc_micro = False
 
 
 def main():
-    long_to_wide()
+    return long_to_wide()
 
 
 if __name__=="__main__":
