@@ -132,7 +132,7 @@ pycparser==2.20
 pycrypto==2.6.1
 pycups==1.9.73
 pydocstyle==6.1.1
-pyenchant==2.0.0
+# pyenchant==2.0.0
 pyflakes==2.2.0
 Pygments==2.7.1
 PyGObject==3.36.0
